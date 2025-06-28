@@ -134,7 +134,7 @@ class MainWindow(QMainWindow):
             return
 
         # Show commit dialog
-        dialog = CommitDialog(self)
+        dialog = CommitDialog(self, self.git_manager)
         if dialog.exec() == QDialog.Accepted:
             commit_message = dialog.get_commit_message()
 

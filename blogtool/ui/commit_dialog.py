@@ -5,7 +5,10 @@ from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QFormLayout,
+    QHBoxLayout,
     QLabel,
+    QMessageBox,
+    QPushButton,
     QTextEdit,
     QVBoxLayout,
 )
@@ -14,11 +17,14 @@ from PySide6.QtWidgets import (
 class CommitDialog(QDialog):
     """Dialog for creating git commits with message input and templates."""
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, git_manager=None):
         super().__init__(parent)
         self.setWindowTitle("Commit Changes")
         self.setModal(True)
         self.resize(500, 300)
+
+        # Store git manager for auto-generation
+        self.git_manager = git_manager
 
         # Create layout
         layout = QVBoxLayout()
@@ -42,11 +48,27 @@ class CommitDialog(QDialog):
         self.template_combo.currentTextChanged.connect(self._on_template_changed)
         form_layout.addRow("Template:", self.template_combo)
 
-        # Commit message input
+        # Commit message input with auto-generate button
+        message_layout = QHBoxLayout()
         self.message_edit = QTextEdit()
         self.message_edit.setMaximumHeight(120)
         self.message_edit.setPlaceholderText("Enter your commit message...")
-        form_layout.addRow("Message:", self.message_edit)
+        message_layout.addWidget(self.message_edit)
+
+        # Auto-generate button
+        if self.git_manager:
+            self.auto_generate_btn = QPushButton("Auto-generate")
+            self.auto_generate_btn.clicked.connect(self._auto_generate_message)
+            self.auto_generate_btn.setMaximumWidth(100)
+
+            # Check if llm is available and disable if not
+            if not self._is_llm_available():
+                self.auto_generate_btn.setEnabled(False)
+                self.auto_generate_btn.setToolTip("Auto-generation requires the 'llm' command to be installed")
+
+            message_layout.addWidget(self.auto_generate_btn)
+
+        form_layout.addRow("Message:", message_layout)
 
         layout.addLayout(form_layout)
 
@@ -64,6 +86,52 @@ class CommitDialog(QDialog):
 
         # Set initial focus to message input
         self.message_edit.setFocus()
+
+    def _is_llm_available(self) -> bool:
+        """Check if llm command is available."""
+        import subprocess
+
+        try:
+            subprocess.run(
+                ["llm", "--help"],
+                capture_output=True,
+                timeout=5,
+            )
+            return True
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            return False
+
+    def _auto_generate_message(self):
+        """Auto-generate commit message using llm tool."""
+        if not self.git_manager:
+            return
+
+        # Temporarily disable button to prevent multiple clicks
+        self.auto_generate_btn.setEnabled(False)
+        self.auto_generate_btn.setText("Generating...")
+
+        try:
+            generated_message = self.git_manager.generate_commit_message()
+            if generated_message:
+                self.message_edit.setPlainText(generated_message)
+                # Reset template combo to "Custom message"
+                self.template_combo.setCurrentText("Custom message")
+            else:
+                # Show warning that generation failed
+                QMessageBox.warning(
+                    self,
+                    "Auto-generation Failed",
+                    "Failed to generate commit message.\n\n"
+                    "This could be because:\n"
+                    "• The 'llm' tool is not installed or configured\n"
+                    "• No changes were detected\n"
+                    "• The LLM service is unavailable\n\n"
+                    "Please write a commit message manually.",
+                )
+        finally:
+            # Re-enable button
+            self.auto_generate_btn.setEnabled(True)
+            self.auto_generate_btn.setText("Auto-generate")
 
     def _on_template_changed(self, template_text: str):
         """Handle template selection change."""

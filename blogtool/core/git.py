@@ -252,3 +252,78 @@ class GitManager:
             return False, "Git operation timed out"
         except Exception as e:
             return False, f"Error: {e}"
+
+    def generate_commit_message(self) -> str:
+        """Generate automated commit message using llm tool.
+
+        Returns:
+            Generated commit message string, or empty string if generation fails
+        """
+        # Check if llm tool is available
+        try:
+            subprocess.run(
+                ["llm", "--help"],
+                capture_output=True,
+                timeout=5,
+            )
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            # llm tool not available
+            return ""
+
+        try:
+            # Get git diff
+            diff_result = subprocess.run(
+                ["git", "diff", "--cached"],
+                cwd=self.blog_path,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+
+            if diff_result.returncode != 0 or not diff_result.stdout.strip():
+                # Try unstaged changes if no staged changes
+                diff_result = subprocess.run(
+                    ["git", "diff"],
+                    cwd=self.blog_path,
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                )
+
+            if diff_result.returncode != 0 or not diff_result.stdout.strip():
+                return ""
+
+            git_diff = diff_result.stdout
+
+            # Construct prompt with user's instructions
+            prompt = f"""Generate a concise summary to the changes made in the blog post
+Use the following format: "<blog_post_handle> <languages>: <description>"
+Where <blog_post_handle> is the name of the folder containing the post
+Where <languages> is the shortened names of the folders that contains the post folder
+Where <description> is a brief description of the changes made.
+For example: "my-blog-post en, ru: Updated the introduction section to include more details about the topic"
+for files located at "contents/english/posts/my-blog-post/index.md" and "contents/russian/posts/my-blog-post/index.md"
+For any changes not connected to a blog post, use the format: "other: <description>"
+For example: "other: Updated the README file with new instructions"
+Always use one of the formats above, do not use any other format.
+
+Here is the git diff:
+{git_diff}"""
+
+            # Call llm tool
+            llm_result = subprocess.run(
+                ["llm", "-m", "openrouter/google/gemini-2.5-flash"],
+                input=prompt,
+                cwd=self.blog_path,
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+
+            if llm_result.returncode == 0 and llm_result.stdout.strip():
+                return llm_result.stdout.strip()
+            else:
+                return ""
+
+        except (subprocess.TimeoutExpired, subprocess.CalledProcessError, Exception):
+            return ""
