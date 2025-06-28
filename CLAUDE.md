@@ -104,3 +104,17 @@ uv run python -m blogtool       # Run the application
 - Handle errors gracefully with appropriate user feedback
 
 Remember: This workflow ensures code quality, maintainability, and reliability. Never skip steps in this process.
+
+## Development Plan
+
+The project follows an iterative MVP approach with 7 phases, prioritizing the most common workflow:
+
+1. **Phase 1**: Basic GUI + Micropost Creator (Playable MVP) - Qt window + micropost creation
+2. **Phase 2**: Git Operations - commit and push workflow 
+3. **Phase 3**: Content Browser Basics - view and manage existing microposts
+4. **Phase 4**: Full Post Support - regular posts and conversations
+5. **Phase 5**: Hugo Server Integration - preview capabilities
+6. **Phase 6**: Publishing Pipeline - draft ↔ published workflow
+7. **Phase 7**: Polish & Settings - configuration and UX improvements
+
+Each phase delivers working software that provides immediate value. The order prioritizes the most frequent use case: microposts + git operations for daily blogging workflow.
