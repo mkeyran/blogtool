@@ -109,7 +109,7 @@ class TestMicropostBrowserPlatform:
         """Test opening folder on macOS."""
         mock_platform.return_value = "Darwin"
         mock_hugo_manager.list_microposts.return_value = [sample_micropost]
-        mock_subprocess.return_value = Mock(returncode=0)
+        mock_subprocess.return_value = Mock(returncode=0, stderr="", stdout="")
 
         browser = MicropostBrowser(mock_hugo_manager)
         browser.micropost_list.setCurrentRow(0)
@@ -128,7 +128,7 @@ class TestMicropostBrowserPlatform:
         """Test opening folder on Linux with successful xdg-open."""
         mock_platform.return_value = "Linux"
         mock_hugo_manager.list_microposts.return_value = [sample_micropost]
-        mock_subprocess.return_value = Mock(returncode=0)
+        mock_subprocess.return_value = Mock(returncode=0, stderr="", stdout="")
 
         browser = MicropostBrowser(mock_hugo_manager)
         browser.micropost_list.setCurrentRow(0)
@@ -148,10 +148,10 @@ class TestMicropostBrowserPlatform:
         mock_platform.return_value = "Linux"
         mock_hugo_manager.list_microposts.return_value = [sample_micropost]
 
-        # Mock xdg-open failure, nautilus success
+        # Mock xdg-open failure, dolphin success
         mock_subprocess.side_effect = [
             FileNotFoundError(),  # xdg-open fails
-            Mock(returncode=0),  # nautilus succeeds
+            Mock(returncode=0, stderr="", stdout=""),  # dolphin succeeds
         ]
 
         browser = MicropostBrowser(mock_hugo_manager)
@@ -166,9 +166,38 @@ class TestMicropostBrowserPlatform:
         first_call_args = mock_subprocess.call_args_list[0][0][0]
         assert first_call_args[0] == "xdg-open"
 
-        # Second call should be nautilus
+        # Second call should be dolphin
         second_call_args = mock_subprocess.call_args_list[1][0][0]
-        assert second_call_args[0] == "nautilus"
+        assert second_call_args[0] == "dolphin"
+
+    @patch("platform.system")
+    @patch("subprocess.run")
+    def test_open_folder_linux_xdg_open_stderr_fallback(self, mock_subprocess, mock_platform, app, mock_hugo_manager, sample_micropost):
+        """Test opening folder on Linux when xdg-open fails with stderr errors."""
+        mock_platform.return_value = "Linux"
+        mock_hugo_manager.list_microposts.return_value = [sample_micropost]
+
+        # Mock xdg-open returning 0 but with stderr indicating failure, then dolphin success
+        mock_subprocess.side_effect = [
+            Mock(returncode=0, stderr="kfmclient: command not found\ninteger expression expected", stdout=""),  # xdg-open fake success
+            Mock(returncode=0, stderr="", stdout=""),  # dolphin succeeds
+        ]
+
+        browser = MicropostBrowser(mock_hugo_manager)
+        browser.micropost_list.setCurrentRow(0)
+
+        browser._open_folder()
+
+        # Should try both commands
+        assert mock_subprocess.call_count == 2
+
+        # First call should be xdg-open
+        first_call_args = mock_subprocess.call_args_list[0][0][0]
+        assert first_call_args[0] == "xdg-open"
+
+        # Second call should be dolphin (fallback due to stderr)
+        second_call_args = mock_subprocess.call_args_list[1][0][0]
+        assert second_call_args[0] == "dolphin"
 
     @patch("platform.system")
     @patch("subprocess.run")

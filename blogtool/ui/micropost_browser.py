@@ -122,7 +122,9 @@ class MicropostBrowser(QWidget):
         self.delete_btn = QPushButton("Delete")
         self.delete_btn.clicked.connect(self._delete_micropost)
         self.delete_btn.setEnabled(False)
-        self.delete_btn.setStyleSheet("QPushButton { background-color: #ff6b6b; color: white; }")
+        self.delete_btn.setStyleSheet(
+            "QPushButton { background-color: #ff6b6b; color: white; }"
+        )
         button_layout.addWidget(self.delete_btn)
 
         layout.addLayout(button_layout)
@@ -163,7 +165,10 @@ class MicropostBrowser(QWidget):
     def _on_selection_changed(self):
         """Handle selection change."""
         current_item = self.micropost_list.currentItem()
-        has_selection = current_item is not None and current_item.data(Qt.ItemDataRole.UserRole) is not None
+        has_selection = (
+            current_item is not None
+            and current_item.data(Qt.ItemDataRole.UserRole) is not None
+        )
 
         self.open_editor_btn.setEnabled(has_selection)
         self.open_folder_btn.setEnabled(has_selection)
@@ -250,8 +255,8 @@ class MicropostBrowser(QWidget):
                 # Try different Linux file managers in order of preference
                 linux_commands = [
                     ["xdg-open", str(folder_path)],  # Standard Linux
-                    ["nautilus", str(folder_path)],  # GNOME
                     ["dolphin", str(folder_path)],  # KDE
+                    ["nautilus", str(folder_path)],  # GNOME
                     ["thunar", str(folder_path)],  # XFCE
                     ["pcmanfm", str(folder_path)],  # LXDE
                 ]
@@ -267,6 +272,24 @@ class MicropostBrowser(QWidget):
                             capture_output=True,
                             text=True,
                         )
+                        
+                        # Special handling for xdg-open: check stderr for compatibility issues
+                        if cmd[0] == "xdg-open" and hasattr(result, 'stderr') and result.stderr:
+                            # Check for known xdg-open issues that indicate it didn't work
+                            error_indicators = [
+                                "kfmclient: command not found",
+                                "integer expression expected",
+                                "No such file or directory",
+                            ]
+                            try:
+                                if any(indicator in result.stderr for indicator in error_indicators):
+                                    # xdg-open failed, try next file manager
+                                    last_error = Exception(f"xdg-open failed: {result.stderr.strip()}")
+                                    continue
+                            except (TypeError, AttributeError):
+                                # If stderr is not iterable or doesn't have expected methods, skip check
+                                pass
+                        
                         # For Linux file managers, if the command runs without FileNotFoundError,
                         # we consider it successful even if return code is non-zero
                         success = True
@@ -280,7 +303,9 @@ class MicropostBrowser(QWidget):
                         break
 
                 if not success:
-                    raise last_error or FileNotFoundError("No suitable file manager found")
+                    raise last_error or FileNotFoundError(
+                        "No suitable file manager found"
+                    )
 
             else:  # Windows or other
                 result = subprocess.run(
@@ -315,7 +340,7 @@ class MicropostBrowser(QWidget):
             QMessageBox.critical(
                 self,
                 "Unexpected Error",
-                f"An unexpected error occurred:\n\n{e}\n\n" f"Path: {folder_path}",
+                f"An unexpected error occurred:\n\n{e}\n\nPath: {folder_path}",
             )
 
     def _delete_micropost(self):
@@ -341,9 +366,15 @@ class MicropostBrowser(QWidget):
                 micropost.file_path.unlink()
                 self._refresh_microposts()
                 self.micropost_updated.emit()
-                QMessageBox.information(self, "Micropost Deleted", "Micropost has been deleted successfully.")
+                QMessageBox.information(
+                    self,
+                    "Micropost Deleted",
+                    "Micropost has been deleted successfully.",
+                )
             except Exception as e:
-                QMessageBox.critical(self, "Delete Failed", f"Failed to delete micropost:\n\n{e}")
+                QMessageBox.critical(
+                    self, "Delete Failed", f"Failed to delete micropost:\n\n{e}"
+                )
 
     def refresh(self):
         """Public method to refresh the micropost list."""
