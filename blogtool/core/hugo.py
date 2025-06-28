@@ -26,30 +26,17 @@ class HugoManager:
         """Initialize Hugo manager.
 
         Args:
-            blog_path: Path to Hugo blog root. If None, will search for blog.
+            blog_path: Path to Hugo blog root. If None, will use settings or auto-detect.
         """
-        self.blog_path = self._find_blog_path(blog_path)
+        if blog_path:
+            self.blog_path = Path(blog_path) if self._is_hugo_site(Path(blog_path)) else None
+        else:
+            # Use settings system for blog path
+            from .settings import get_settings
 
-    def _find_blog_path(self, provided_path: Optional[str]) -> Optional[Path]:
-        """Find Hugo blog path."""
-        if provided_path:
-            path = Path(provided_path)
-            if self._is_hugo_site(path):
-                return path
-
-        current_dir = Path.cwd()
-
-        # Look in playground directory (for testing)
-        playground_blog = current_dir / "playground"
-        if self._is_hugo_site(playground_blog):
-            return playground_blog
-
-        # Look in sibling directory as mentioned in requirements
-        sibling_blog = current_dir.parent / "mkeyran.github.io"
-        if self._is_hugo_site(sibling_blog):
-            return sibling_blog
-
-        return None
+            settings = get_settings()
+            configured_path = settings.get_blog_path()
+            self.blog_path = Path(configured_path) if configured_path else None
 
     def _is_hugo_site(self, path: Path) -> bool:
         """Check if path contains a Hugo site."""

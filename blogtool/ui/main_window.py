@@ -176,8 +176,16 @@ class MainWindow(QMainWindow):
         """Show the Settings dialog."""
         dialog = SettingsDialog(self)
         if dialog.exec() == QDialog.Accepted:
-            # Refresh micropost browser in case settings affected display
+            # Refresh managers in case blog path changed
+            self.hugo_manager = HugoManager()
+            self.git_manager = GitManager(self.hugo_manager.get_blog_path())
+
+            # Update micropost browser with new hugo manager
+            self.micropost_browser.hugo_manager = self.hugo_manager
             self.micropost_browser.refresh()
+
+            # Update git status
+            self._update_git_status()
 
     def _show_about_dialog(self):
         """Show the About dialog."""

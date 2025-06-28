@@ -7,6 +7,7 @@ from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
     QDialogButtonBox,
+    QFileDialog,
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
@@ -77,6 +78,37 @@ class SettingsDialog(QDialog):
 
         layout.addWidget(editor_group)
 
+        # Blog settings group
+        blog_group = QGroupBox("Blog Settings")
+        blog_layout = QFormLayout()
+        blog_group.setLayout(blog_layout)
+
+        # Blog path input
+        blog_path_row = QHBoxLayout()
+        self.blog_path_input = QLineEdit()
+        self.blog_path_input.setPlaceholderText("Leave empty for auto-detection")
+        blog_path_row.addWidget(self.blog_path_input)
+
+        # Browse button
+        self.browse_blog_btn = QPushButton("Browse")
+        self.browse_blog_btn.clicked.connect(self._browse_blog_path)
+        self.browse_blog_btn.setMaximumWidth(80)
+        blog_path_row.addWidget(self.browse_blog_btn)
+
+        blog_layout.addRow("Blog Path:", blog_path_row)
+
+        # Auto-detect checkbox
+        self.auto_detect_blog_cb = QCheckBox("Auto-detect blog path")
+        self.auto_detect_blog_cb.stateChanged.connect(self._on_auto_detect_changed)
+        blog_layout.addRow(self.auto_detect_blog_cb)
+
+        # Blog status label
+        self.blog_status = QLabel()
+        self.blog_status.setStyleSheet("color: #666; font-size: 10px;")
+        blog_layout.addRow("Status:", self.blog_status)
+
+        layout.addWidget(blog_group)
+
         # Git settings group
         git_group = QGroupBox("Git Settings")
         git_layout = QFormLayout()
@@ -119,6 +151,7 @@ class SettingsDialog(QDialog):
 
         # Update editor status initially
         self._update_editor_status()
+        self._update_blog_status()
 
     def _load_current_settings(self):
         """Load current settings into the dialog."""
@@ -130,6 +163,13 @@ class SettingsDialog(QDialog):
         index = self.available_editors.findData(editor_command)
         if index >= 0:
             self.available_editors.setCurrentIndex(index)
+
+        # Blog settings
+        blog_path = self.settings.get("blog.path", "")
+        self.blog_path_input.setText(blog_path)
+
+        auto_detect_blog = self.settings.get("blog.auto_detect", True)
+        self.auto_detect_blog_cb.setChecked(auto_detect_blog)
 
         # Git settings
         auto_generate = self.settings.get("git.auto_generate_messages", True)
@@ -211,6 +251,65 @@ class SettingsDialog(QDialog):
             self.editor_status.setText(f"Custom: {editor_command}")
             self.editor_status.setStyleSheet("color: blue; font-size: 10px;")
 
+    def _browse_blog_path(self):
+        """Browse for blog directory."""
+        current_path = self.blog_path_input.text().strip() or self.settings.get_blog_path() or ""
+
+        directory = QFileDialog.getExistingDirectory(
+            self, "Select Hugo Blog Directory", current_path, QFileDialog.ShowDirsOnly | QFileDialog.DontResolveSymlinks
+        )
+
+        if directory:
+            # Verify it's a Hugo site
+            from pathlib import Path
+
+            if self.settings._is_hugo_site(Path(directory)):
+                self.blog_path_input.setText(directory)
+                self.auto_detect_blog_cb.setChecked(False)
+                self._update_blog_status()
+            else:
+                QMessageBox.warning(
+                    self,
+                    "Invalid Hugo Site",
+                    f"The selected directory does not appear to be a Hugo site.\n\n"
+                    f"A Hugo site should contain:\n"
+                    f"• A configuration file (hugo.toml, config.toml, etc.)\n"
+                    f"• A 'content' directory\n\n"
+                    f"Selected: {directory}",
+                )
+
+    def _on_auto_detect_changed(self):
+        """Handle auto-detect checkbox change."""
+        if self.auto_detect_blog_cb.isChecked():
+            self.blog_path_input.setText("")
+        self._update_blog_status()
+
+    def _update_blog_status(self):
+        """Update the blog status label."""
+        if self.auto_detect_blog_cb.isChecked() or not self.blog_path_input.text().strip():
+            # Auto-detection mode
+            detected_path = self.settings.get_blog_path()
+            if detected_path:
+                self.blog_status.setText(f"Auto-detected: {detected_path}")
+                self.blog_status.setStyleSheet("color: green; font-size: 10px;")
+            else:
+                self.blog_status.setText("No Hugo site auto-detected")
+                self.blog_status.setStyleSheet("color: orange; font-size: 10px;")
+        else:
+            # Manual path mode
+            manual_path = self.blog_path_input.text().strip()
+            from pathlib import Path
+
+            if manual_path and self.settings._is_hugo_site(Path(manual_path)):
+                self.blog_status.setText(f"Valid Hugo site: {manual_path}")
+                self.blog_status.setStyleSheet("color: green; font-size: 10px;")
+            elif manual_path:
+                self.blog_status.setText("Invalid Hugo site")
+                self.blog_status.setStyleSheet("color: red; font-size: 10px;")
+            else:
+                self.blog_status.setText("No path specified")
+                self.blog_status.setStyleSheet("color: orange; font-size: 10px;")
+
     def _restore_defaults(self):
         """Restore all settings to default values."""
         reply = QMessageBox.question(
@@ -225,12 +324,23 @@ class SettingsDialog(QDialog):
             self.settings.reset_to_defaults()
             self._load_current_settings()
             self._update_editor_status()
+            self._update_blog_status()
 
     def accept(self):
         """Save settings and accept the dialog."""
         # Save editor settings
         editor_command = self.editor_input.text().strip()
         self.settings.set("editor.command", editor_command)
+
+        # Save blog settings
+        if self.auto_detect_blog_cb.isChecked():
+            self.settings.enable_blog_auto_detection()
+        else:
+            blog_path = self.blog_path_input.text().strip()
+            if blog_path:
+                self.settings.set_blog_path(blog_path)
+            else:
+                self.settings.enable_blog_auto_detection()
 
         # Save git settings
         self.settings.set("git.auto_generate_messages", self.auto_generate_cb.isChecked())

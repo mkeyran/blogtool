@@ -48,6 +48,10 @@ class Settings:
                 "command": "",  # Empty means use auto-detection
                 "available_editors": default_editors,
             },
+            "blog": {
+                "path": "",  # Empty means use auto-detection (playground or sibling directory)
+                "auto_detect": True,
+            },
             "git": {
                 "auto_generate_messages": True,
                 "default_templates": [
@@ -160,6 +164,63 @@ class Settings:
     def set_editor(self, editor_command: str) -> None:
         """Set the preferred editor command."""
         self.set("editor.command", editor_command)
+
+    def get_blog_path(self) -> Optional[str]:
+        """Get the configured blog path, with auto-detection fallback."""
+        configured_path = self.get("blog.path", "").strip()
+        auto_detect = self.get("blog.auto_detect", True)
+
+        if configured_path and Path(configured_path).exists():
+            return configured_path
+
+        if auto_detect:
+            # Use the same logic as HugoManager for auto-detection
+            from pathlib import Path
+
+            current_dir = Path.cwd()
+
+            # Look in playground directory (for testing/development)
+            playground_blog = current_dir / "playground"
+            if self._is_hugo_site(playground_blog):
+                return str(playground_blog)
+
+            # Look in sibling directory as mentioned in requirements
+            sibling_blog = current_dir.parent / "mkeyran.github.io"
+            if self._is_hugo_site(sibling_blog):
+                return str(sibling_blog)
+
+        return None
+
+    def set_blog_path(self, blog_path: str) -> None:
+        """Set the blog path and disable auto-detection."""
+        self.set("blog.path", blog_path)
+        self.set("blog.auto_detect", False)
+
+    def enable_blog_auto_detection(self) -> None:
+        """Enable blog path auto-detection and clear manual path."""
+        self.set("blog.path", "")
+        self.set("blog.auto_detect", True)
+
+    def _is_hugo_site(self, path: Path) -> bool:
+        """Check if path contains a Hugo site."""
+        if not path.exists():
+            return False
+
+        # Check for Hugo config files
+        config_files = [
+            "hugo.toml",
+            "hugo.yaml",
+            "hugo.yml",
+            "config.toml",
+            "config.yaml",
+            "config.yml",
+        ]
+        has_config = any((path / config).exists() for config in config_files)
+
+        # Check for content directory
+        has_content = (path / "content").exists()
+
+        return has_config and has_content
 
     def get_all_settings(self) -> Dict[str, Any]:
         """Get all current settings."""

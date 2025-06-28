@@ -237,11 +237,15 @@ class MicropostBrowser(QWidget):
 
         try:
             if system == "Darwin":  # macOS
-                subprocess.run(
+                result = subprocess.run(
                     ["open", str(folder_path)],
-                    check=True,
-                    timeout=5,
+                    timeout=10,
+                    capture_output=True,
+                    text=True,
                 )
+                # macOS 'open' command usually works if it returns 0
+                if result.returncode != 0:
+                    raise subprocess.CalledProcessError(result.returncode, "open")
             elif system == "Linux":
                 # Try different Linux file managers in order of preference
                 linux_commands = [
@@ -253,29 +257,40 @@ class MicropostBrowser(QWidget):
                 ]
 
                 success = False
+                last_error = None
+
                 for cmd in linux_commands:
                     try:
-                        subprocess.run(
+                        result = subprocess.run(
                             cmd,
-                            check=True,
-                            timeout=5,
-                            stdout=subprocess.DEVNULL,
-                            stderr=subprocess.DEVNULL,
+                            timeout=10,
+                            capture_output=True,
+                            text=True,
                         )
+                        # For Linux file managers, if the command runs without FileNotFoundError,
+                        # we consider it successful even if return code is non-zero
                         success = True
                         break
-                    except (subprocess.CalledProcessError, FileNotFoundError):
+                    except FileNotFoundError as e:
+                        last_error = e
                         continue
+                    except subprocess.TimeoutExpired:
+                        # Timeout usually means the file manager launched successfully
+                        success = True
+                        break
 
                 if not success:
-                    raise FileNotFoundError("No suitable file manager found")
+                    raise last_error or FileNotFoundError("No suitable file manager found")
 
             else:  # Windows or other
-                subprocess.run(
+                result = subprocess.run(
                     ["explorer", str(folder_path)],
-                    check=True,
-                    timeout=5,
+                    timeout=10,
+                    capture_output=True,
+                    text=True,
                 )
+                if result.returncode != 0:
+                    raise subprocess.CalledProcessError(result.returncode, "explorer")
 
         except subprocess.TimeoutExpired:
             # File manager launched successfully but took time (normal)
