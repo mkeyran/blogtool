@@ -6,22 +6,30 @@ This document outlines the iterative development approach for building the Qt-ba
 
 The project follows an MVP approach with 7 phases, prioritizing the most common daily workflow: microposts + git operations.
 
-## Phase 1: Basic GUI + Micropost Creator (Playable MVP)
+## Phase 1: Basic GUI + Micropost Creator (Playable MVP) ✅ COMPLETED
 **Goal**: Get working Qt window with micropost functionality (quickest value)
 
-### 1.1 Minimal Qt Application
-- [ ] Create basic QMainWindow with menu bar
-- [ ] Add "About" dialog showing app info  
-- [ ] Test: Window opens and closes properly
+### 1.1 Minimal Qt Application ✅
+- [x] Create basic QMainWindow with menu bar
+- [x] Add "About" dialog showing app info  
+- [x] Test: Window opens and closes properly
 
-### 1.2 Micropost Creator (MVP)
-- [ ] Add "New Micropost" button/menu item
-- [ ] Create simple dialog: title input (optional) + auto-slug generation
-- [ ] Implement Hugo CLI integration (`hugo new content microposts/...`)
-- [ ] Test: Can create a real Hugo micropost file
-- [ ] Add success/error notifications
+### 1.2 Micropost Creator (MVP) ✅
+- [x] Add "New Micropost" button/menu item
+- [x] Create simple dialog: title input (optional) + auto-slug generation
+- [x] Implement Hugo CLI integration (`hugo new content microposts/...`)
+- [x] Test: Can create a real Hugo micropost file
+- [x] Add success/error notifications
 
-**Deliverable**: Working app that creates microposts via GUI (highest frequency use case)
+**Deliverable**: ✅ Working app that creates microposts via GUI (highest frequency use case)
+
+**Implementation Details**:
+- `MainWindow` class with File and Help menus
+- "New Micropost" menu item with Ctrl+M shortcut  
+- `MicropostDialog` with title input and filename preview
+- `HugoManager` for Hugo CLI integration
+- Comprehensive test coverage including real Hugo integration
+- Creates microposts in correct `content/microposts/` directory
 
 ## Phase 2: Git Operations
 **Goal**: Add version control workflow (second most important)
