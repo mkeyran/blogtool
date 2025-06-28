@@ -17,6 +17,7 @@ from ..core.hugo import HugoManager
 from .commit_dialog import CommitDialog
 from .micropost_browser import MicropostBrowser
 from .micropost_dialog import MicropostDialog
+from .settings_dialog import SettingsDialog
 
 
 class MainWindow(QMainWindow):
@@ -73,6 +74,14 @@ class MainWindow(QMainWindow):
         commit_action.setShortcut("Ctrl+Shift+C")
         commit_action.triggered.connect(self._commit_and_push)
         file_menu.addAction(commit_action)
+
+        file_menu.addSeparator()
+
+        # Settings action
+        settings_action = QAction("&Settings", self)
+        settings_action.setShortcut("Ctrl+,")
+        settings_action.triggered.connect(self._show_settings)
+        file_menu.addAction(settings_action)
 
         # Help menu
         help_menu = menubar.addMenu("&Help")
@@ -162,6 +171,13 @@ class MainWindow(QMainWindow):
                     "Commit Failed",
                     f"Failed to commit and push changes:\n\n{message}",
                 )
+
+    def _show_settings(self):
+        """Show the Settings dialog."""
+        dialog = SettingsDialog(self)
+        if dialog.exec() == QDialog.Accepted:
+            # Refresh micropost browser in case settings affected display
+            self.micropost_browser.refresh()
 
     def _show_about_dialog(self):
         """Show the About dialog."""

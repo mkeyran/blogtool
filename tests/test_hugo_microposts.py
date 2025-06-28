@@ -220,11 +220,7 @@ class TestHugoMicropostListing:
             for date_str, filename in dates_and_files:
                 micropost = microposts_dir / filename
                 micropost.write_text(
-                    f"---\n"
-                    f"date: '{date_str}'\n"
-                    f"draft: false\n"
-                    f"---\n\n"
-                    f"Content for {filename}"
+                    f"---\n" f"date: '{date_str}'\n" f"draft: false\n" f"---\n\n" f"Content for {filename}"
                 )
 
             manager = HugoManager(str(temp_path))

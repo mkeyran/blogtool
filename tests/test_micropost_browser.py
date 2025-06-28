@@ -134,53 +134,62 @@ class TestMicropostBrowser:
         assert selected is not None
         assert selected.title == "Test Micropost 1"
 
-    @patch("subprocess.run")
-    def test_open_in_editor_success(self, mock_subprocess, app, mock_hugo_manager, sample_microposts):
+    def test_open_in_editor_success(self, app, mock_hugo_manager, sample_microposts):
         """Test opening micropost in editor successfully."""
         mock_hugo_manager.list_microposts.return_value = sample_microposts
-        mock_subprocess.return_value = Mock(returncode=0)
 
-        browser = MicropostBrowser(mock_hugo_manager)
-        browser.micropost_list.setCurrentRow(0)
+        with patch("blogtool.ui.micropost_browser.get_settings") as mock_get_settings:
+            mock_settings = Mock()
+            mock_settings.get_editor_command.return_value = "code"
+            mock_get_settings.return_value = mock_settings
 
-        # Should not raise any exception
-        browser._open_in_editor()
+            browser = MicropostBrowser(mock_hugo_manager)
+            browser.micropost_list.setCurrentRow(0)
 
-        # Verify subprocess was called with editor and file path
-        mock_subprocess.assert_called_once()
-        args = mock_subprocess.call_args[0][0]
-        assert len(args) == 2
-        assert args[0] in ["code", "subl", "atom", "vim", "nano", "gedit"]
-        assert str(sample_microposts[0].file_path) in args
+            with patch("subprocess.run") as mock_subprocess:
+                # Should not raise any exception
+                browser._open_in_editor()
 
-    @patch("subprocess.run")
-    def test_open_in_editor_no_editor(self, mock_subprocess, app, mock_hugo_manager, sample_microposts):
+                # Verify subprocess was called with configured editor and file path
+                mock_subprocess.assert_called_once()
+                args = mock_subprocess.call_args[0][0]
+                assert len(args) == 2
+                assert args[0] == "code"
+                assert str(sample_microposts[0].file_path) in args
+
+    def test_open_in_editor_no_editor(self, app, mock_hugo_manager, sample_microposts):
         """Test opening micropost when no editor is available."""
         mock_hugo_manager.list_microposts.return_value = sample_microposts
-        mock_subprocess.side_effect = FileNotFoundError()
 
-        browser = MicropostBrowser(mock_hugo_manager)
-        browser.micropost_list.setCurrentRow(0)
+        with patch("blogtool.ui.micropost_browser.get_settings") as mock_get_settings:
+            mock_settings = Mock()
+            mock_settings.get_editor_command.return_value = None
+            mock_get_settings.return_value = mock_settings
 
-        with patch("blogtool.ui.micropost_browser.QMessageBox.warning") as mock_warning:
-            browser._open_in_editor()
-            mock_warning.assert_called_once()
+            browser = MicropostBrowser(mock_hugo_manager)
+            browser.micropost_list.setCurrentRow(0)
 
-    @patch("subprocess.run")
-    def test_open_folder_success(self, mock_subprocess, app, mock_hugo_manager, sample_microposts):
+            with patch("blogtool.ui.micropost_browser.QMessageBox.warning") as mock_warning:
+                browser._open_in_editor()
+                mock_warning.assert_called_once()
+
+    def test_open_folder_success(self, app, mock_hugo_manager, sample_microposts):
         """Test opening folder successfully."""
         mock_hugo_manager.list_microposts.return_value = sample_microposts
-        mock_subprocess.return_value = Mock(returncode=0)
 
         browser = MicropostBrowser(mock_hugo_manager)
         browser.micropost_list.setCurrentRow(0)
 
-        browser._open_folder()
+        with patch("platform.system", return_value="Linux"):
+            with patch("subprocess.run") as mock_subprocess:
+                mock_subprocess.return_value = Mock(returncode=0)
 
-        # Verify subprocess was called with file manager command
-        mock_subprocess.assert_called_once()
-        args = mock_subprocess.call_args[0][0]
-        assert args[0] in ["xdg-open", "open", "explorer"]
+                browser._open_folder()
+
+                # Verify subprocess was called with file manager command
+                mock_subprocess.assert_called_once()
+                args = mock_subprocess.call_args[0][0]
+                assert args[0] == "xdg-open"
 
     def test_delete_micropost_success(self, app, mock_hugo_manager, sample_microposts):
         """Test deleting micropost successfully."""

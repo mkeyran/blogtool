@@ -1,5 +1,6 @@
 """Micropost browser widget for viewing and managing microposts."""
 
+import platform
 import subprocess
 from typing import Optional
 
@@ -16,6 +17,7 @@ from PySide6.QtWidgets import (
 )
 
 from ..core.hugo import HugoManager, MicropostInfo
+from ..core.settings import get_settings
 
 
 class MicropostItem(QWidget):
@@ -71,6 +73,7 @@ class MicropostBrowser(QWidget):
     def __init__(self, hugo_manager: Optional[HugoManager] = None):
         super().__init__()
         self.hugo_manager = hugo_manager or HugoManager()
+        self.settings = get_settings()
         self._setup_ui()
         self._refresh_microposts()
 
@@ -179,33 +182,49 @@ class MicropostBrowser(QWidget):
         if not micropost:
             return
 
-        # Try common editors (could be made configurable later)
-        editors = ["code", "subl", "atom", "vim", "nano", "gedit"]
+        # Get configured editor
+        editor_command = self.settings.get_editor_command()
 
-        for editor in editors:
-            try:
-                subprocess.run(
-                    [editor, str(micropost.file_path)],
-                    check=True,
-                    timeout=5,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
-                return
-            except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
-                continue
+        if not editor_command:
+            QMessageBox.warning(
+                self,
+                "No Editor Configured",
+                "No suitable text editor could be found.\n\n"
+                "Please configure an editor in Settings or install one of:\n"
+                "• Visual Studio Code (code)\n"
+                "• Sublime Text (subl)\n"
+                "• Vim (vim)\n"
+                "• Nano (nano)",
+            )
+            return
 
-        # Fallback: show error message
-        QMessageBox.warning(
-            self,
-            "Editor Not Found",
-            "Could not find a suitable text editor.\n\n"
-            "Please install one of the following editors:\n"
-            "• Visual Studio Code (code)\n"
-            "• Sublime Text (subl)\n"
-            "• Vim (vim)\n"
-            "• Nano (nano)",
-        )
+        try:
+            # Handle complex commands like "open -t"
+            editor_parts = editor_command.split()
+            cmd = editor_parts + [str(micropost.file_path)]
+
+            subprocess.run(
+                cmd,
+                timeout=10,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        except subprocess.TimeoutExpired:
+            # Editor launched successfully but took time (normal for GUI editors)
+            pass
+        except FileNotFoundError:
+            QMessageBox.warning(
+                self,
+                "Editor Not Found",
+                f"Editor command '{editor_command}' was not found.\n\n"
+                "Please check your editor configuration in Settings.",
+            )
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "Editor Error",
+                f"Failed to open editor:\n\n{e}",
+            )
 
     def _open_folder(self):
         """Open the micropost's folder in file manager."""
@@ -214,33 +233,75 @@ class MicropostBrowser(QWidget):
             return
 
         folder_path = micropost.file_path.parent
+        system = platform.system()
 
-        # Try different file managers
-        commands = [
-            ["xdg-open", str(folder_path)],  # Linux
-            ["open", str(folder_path)],  # macOS
-            ["explorer", str(folder_path)],  # Windows
-        ]
-
-        for cmd in commands:
-            try:
+        try:
+            if system == "Darwin":  # macOS
                 subprocess.run(
-                    cmd,
+                    ["open", str(folder_path)],
                     check=True,
                     timeout=5,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
                 )
-                return
-            except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
-                continue
+            elif system == "Linux":
+                # Try different Linux file managers in order of preference
+                linux_commands = [
+                    ["xdg-open", str(folder_path)],  # Standard Linux
+                    ["nautilus", str(folder_path)],  # GNOME
+                    ["dolphin", str(folder_path)],  # KDE
+                    ["thunar", str(folder_path)],  # XFCE
+                    ["pcmanfm", str(folder_path)],  # LXDE
+                ]
 
-        # Fallback: show error message
-        QMessageBox.warning(
-            self,
-            "File Manager Not Found",
-            f"Could not open file manager.\n\nPath: {folder_path}",
-        )
+                success = False
+                for cmd in linux_commands:
+                    try:
+                        subprocess.run(
+                            cmd,
+                            check=True,
+                            timeout=5,
+                            stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL,
+                        )
+                        success = True
+                        break
+                    except (subprocess.CalledProcessError, FileNotFoundError):
+                        continue
+
+                if not success:
+                    raise FileNotFoundError("No suitable file manager found")
+
+            else:  # Windows or other
+                subprocess.run(
+                    ["explorer", str(folder_path)],
+                    check=True,
+                    timeout=5,
+                )
+
+        except subprocess.TimeoutExpired:
+            # File manager launched successfully but took time (normal)
+            pass
+        except FileNotFoundError:
+            QMessageBox.warning(
+                self,
+                "File Manager Not Found",
+                f"Could not find a suitable file manager for {system}.\n\n"
+                f"Path: {folder_path}\n\n"
+                f"Please open this path manually in your file manager.",
+            )
+        except subprocess.CalledProcessError as e:
+            QMessageBox.warning(
+                self,
+                "File Manager Error",
+                f"Failed to open file manager (exit code {e.returncode}).\n\n"
+                f"Path: {folder_path}\n\n"
+                f"Please open this path manually in your file manager.",
+            )
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "Unexpected Error",
+                f"An unexpected error occurred:\n\n{e}\n\n" f"Path: {folder_path}",
+            )
 
     def _delete_micropost(self):
         """Delete the selected micropost."""
