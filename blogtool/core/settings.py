@@ -175,7 +175,6 @@ class Settings:
 
         if auto_detect:
             # Use the same logic as HugoManager for auto-detection
-            from pathlib import Path
 
             current_dir = Path.cwd()
 
