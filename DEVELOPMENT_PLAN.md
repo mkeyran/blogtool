@@ -55,21 +55,32 @@ The project follows an MVP approach with 7 phases, prioritizing the most common 
 - Comprehensive test coverage including unit tests and integration tests
 - Real-time git status updates and automatic refresh after operations
 
-## Phase 3: Content Browser Basics
+## Phase 3: Content Browser Basics ✅ COMPLETED
 **Goal**: Add ability to see and manage existing content
 
-### 3.1 Simple Micropost Browser
-- [ ] Add list widget showing microposts (title, date)
-- [ ] Display basic info from front matter
-- [ ] Test: Shows actual Hugo micropost files
+### 3.1 Simple Micropost Browser ✅
+- [x] Add list widget showing microposts (title, date)
+- [x] Display basic info from front matter
+- [x] Test: Shows actual Hugo micropost files
 
-### 3.2 Basic Actions
-- [ ] "Open in Editor" button (configurable editor path)
-- [ ] "Open Folder" button (system file manager)
-- [ ] Delete micropost action
-- [ ] Test: All actions work with real files
+### 3.2 Basic Actions ✅
+- [x] "Open in Editor" button (configurable editor path)
+- [x] "Open Folder" button (system file manager)
+- [x] Delete micropost action
+- [x] Test: All actions work with real files
 
-**Deliverable**: Browse and manage existing microposts
+**Deliverable**: ✅ Browse and manage existing microposts
+
+**Implementation Details**:
+- `MicropostBrowser` widget with custom `MicropostItem` display components
+- `HugoManager.list_microposts()` method for parsing and listing microposts
+- Smart title generation from content first line or filename fallback
+- Preview generation with markdown formatting removal
+- Multi-editor support with fallback error handling for "Open in Editor"
+- Cross-platform file manager integration for "Open Folder"
+- Confirmation dialogs and error handling for delete operations
+- Comprehensive test coverage including unit tests and Qt widget testing
+- Integration into main window with automatic refresh after operations
 
 ## Phase 4: Full Post Support
 **Goal**: Extend to regular posts and conversations

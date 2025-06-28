@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 from ..core.git import GitManager
 from ..core.hugo import HugoManager
 from .commit_dialog import CommitDialog
+from .micropost_browser import MicropostBrowser
 from .micropost_dialog import MicropostDialog
 
 
@@ -37,6 +38,11 @@ class MainWindow(QMainWindow):
         # Create layout
         layout = QVBoxLayout()
         central_widget.setLayout(layout)
+
+        # Create micropost browser
+        self.micropost_browser = MicropostBrowser(self.hugo_manager)
+        self.micropost_browser.micropost_updated.connect(self._update_git_status)
+        layout.addWidget(self.micropost_browser)
 
         # Create menu bar
         self._create_menu_bar()
@@ -101,8 +107,9 @@ class MainWindow(QMainWindow):
                     "Micropost Created",
                     f"Micropost created successfully!\n\n{message}",
                 )
-                # Refresh git status after creating content
+                # Refresh git status and micropost browser after creating content
                 self._update_git_status()
+                self.micropost_browser.refresh()
             else:
                 QMessageBox.critical(
                     self,

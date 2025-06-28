@@ -1,8 +1,22 @@
 """Hugo CLI integration for blog management."""
 
+import re
 import subprocess
+from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
+
+
+@dataclass
+class MicropostInfo:
+    """Information about a micropost."""
+
+    filename: str
+    title: str
+    date: datetime
+    file_path: Path
+    preview: str
 
 
 class HugoManager:
@@ -139,3 +153,144 @@ class HugoManager:
     def is_blog_available(self) -> bool:
         """Check if Hugo blog is available."""
         return self.blog_path is not None
+
+    def list_microposts(self) -> List[MicropostInfo]:
+        """List all microposts in the blog.
+
+        Returns:
+            List of MicropostInfo objects sorted by date (newest first).
+        """
+        if not self.blog_path:
+            return []
+
+        microposts_dir = self.blog_path / "content" / "microposts"
+        if not microposts_dir.exists():
+            return []
+
+        microposts = []
+        for md_file in microposts_dir.glob("*.md"):
+            if md_file.name == "_index.md":
+                continue
+
+            try:
+                micropost_info = self._parse_micropost(md_file)
+                if micropost_info:
+                    microposts.append(micropost_info)
+            except Exception:
+                # Skip files that can't be parsed
+                continue
+
+        # Sort by date, newest first
+        microposts.sort(key=lambda m: m.date, reverse=True)
+        return microposts
+
+    def _parse_micropost(self, file_path: Path) -> Optional[MicropostInfo]:
+        """Parse a micropost file to extract information.
+
+        Args:
+            file_path: Path to the micropost file.
+
+        Returns:
+            MicropostInfo object or None if parsing fails.
+        """
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                content = f.read()
+
+            # Extract front matter
+            if not content.startswith("---"):
+                return None
+
+            parts = content.split("---", 2)
+            if len(parts) < 3:
+                return None
+
+            front_matter = parts[1]
+            body = parts[2].strip()
+
+            # Extract date from front matter
+            date_match = re.search(r"date:\s*['\"]?([^'\"]+)['\"]?", front_matter)
+            if not date_match:
+                return None
+
+            # Parse date
+            date_str = date_match.group(1)
+            try:
+                # Handle various date formats
+                if "T" in date_str:
+                    # ISO format with time
+                    date = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+                else:
+                    # Simple date format
+                    date = datetime.fromisoformat(date_str)
+            except ValueError:
+                return None
+
+            # Generate title from filename or content
+            filename = file_path.name
+            title = self._generate_title(filename, body)
+
+            # Generate preview from body
+            preview = self._generate_preview(body)
+
+            return MicropostInfo(
+                filename=filename,
+                title=title,
+                date=date,
+                file_path=file_path,
+                preview=preview,
+            )
+
+        except Exception:
+            return None
+
+    def _generate_title(self, filename: str, body: str) -> str:
+        """Generate a title for the micropost.
+
+        Args:
+            filename: The filename of the micropost.
+            body: The body content of the micropost.
+
+        Returns:
+            Generated title string.
+        """
+        # Try to extract title from first line of content
+        first_line = body.split("\n")[0].strip() if body else ""
+
+        # If first line looks like a title (not a URL, not too long)
+        if first_line and not first_line.startswith("http") and len(first_line) < 100:
+            # Remove markdown formatting
+            title = re.sub(r"[#*_`\[\]]", "", first_line).strip()
+            if title:
+                return title
+
+        # Fallback: use filename without extension and generate readable title
+        base_name = filename.replace(".md", "")
+        # Remove date prefix if present
+        title_part = re.sub(r"^\d{4}-\d{2}-\d{2}-", "", base_name)
+        # Replace hyphens with spaces and title case
+        return title_part.replace("-", " ").title()
+
+    def _generate_preview(self, body: str) -> str:
+        """Generate a preview from the micropost body.
+
+        Args:
+            body: The body content of the micropost.
+
+        Returns:
+            Preview string (first ~150 characters).
+        """
+        if not body:
+            return ""
+
+        # Remove markdown formatting for preview
+        preview = re.sub(r"[#*_`]", "", body)
+        # Replace multiple whitespace with single space
+        preview = re.sub(r"\s+", " ", preview).strip()
+
+        # Truncate to reasonable length
+        max_length = 150
+        if len(preview) > max_length:
+            preview = preview[:max_length].rsplit(" ", 1)[0] + "..."
+
+        return preview
