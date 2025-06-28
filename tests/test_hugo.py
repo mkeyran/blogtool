@@ -39,7 +39,7 @@ class TestHugoManager:
                 mock_settings = Mock()
                 mock_settings.get_blog_path.return_value = str(sibling_blog)
                 mock_get_settings.return_value = mock_settings
-                
+
                 manager = HugoManager()
                 assert manager.blog_path == sibling_blog
                 assert manager.is_blog_available()

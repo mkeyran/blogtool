@@ -109,6 +109,7 @@ class TestMicropostBrowserPlatform:
         """Test opening folder on macOS."""
         mock_platform.return_value = "Darwin"
         mock_hugo_manager.list_microposts.return_value = [sample_micropost]
+        mock_subprocess.return_value = Mock(returncode=0)
 
         browser = MicropostBrowser(mock_hugo_manager)
         browser.micropost_list.setCurrentRow(0)
