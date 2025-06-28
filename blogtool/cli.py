@@ -2,6 +2,8 @@
 
 import sys
 
+from .ui.app import BlogToolApp
+
 
 def main() -> None:
     """Main entry point for the CLI."""
@@ -9,8 +11,8 @@ def main() -> None:
     print("Version: 0.1.0")
     print("Starting GUI application...")
 
-    # TODO: Initialize Qt application here
-    sys.exit(0)
+    app = BlogToolApp()
+    sys.exit(app.run())
 
 
 if __name__ == "__main__":
