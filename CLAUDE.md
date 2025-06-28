@@ -90,9 +90,10 @@ uv run python -m blogtool       # Run the application
 ## Testing Strategy
 
 - Test Qt components using QTest framework
-- Mock external dependencies (Hugo CLI, Git, file system)
+- Mock external dependencies (Hugo CLI, Git, file system) with proper return values
 - Test user workflows end-to-end where possible
-- Include edge cases and error conditions
+- Include edge cases and error conditions (e.g., xdg-open compatibility issues)
+- Ensure Mock objects have required attributes (returncode, stderr, stdout) to prevent runtime errors
 - Maintain fast test execution times
 
 ## Code Quality Standards
@@ -102,6 +103,8 @@ uv run python -m blogtool       # Run the application
 - Write clear, self-documenting code
 - Include docstrings for public APIs
 - Handle errors gracefully with appropriate user feedback
+- Implement robust cross-platform compatibility with intelligent fallback mechanisms
+- Detect and handle platform-specific issues (e.g., xdg-open stderr parsing for KDE compatibility)
 
 Remember: This workflow ensures code quality, maintainability, and reliability. Never skip steps in this process.
 
@@ -140,6 +143,9 @@ Each phase delivers working software that provides immediate value. The order pr
 - MicropostBrowser widget displaying all microposts with title, date, and preview
 - Smart title generation from content or filename with markdown formatting removal
 - Basic actions: "Open in Editor", "Open Folder", and "Delete micropost" with confirmations
+- Cross-platform external tool integration with robust error handling and fallback support
+- Settings system with persistent configuration for blog path and editor preferences
+- Intelligent xdg-open error detection for KDE compatibility issues with automatic fallback
 - Automatic refresh after micropost creation and deletion operations
 - Comprehensive test coverage for browser functionality and Hugo micropost parsing
 - Integrated into main window with real-time updates and git status synchronization
