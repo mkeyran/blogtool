@@ -52,7 +52,7 @@ Repository = "https://github.com/keyran/blogtool"
 Issues = "https://github.com/keyran/blogtool/issues"
 
 [tool.black]
-line-length = 88
+line-length = 120
 target-version = ['py39']
 include = '\.pyi?$'
 extend-exclude = '''
@@ -72,9 +72,14 @@ extend-exclude = '''
 [tool.isort]
 profile = "black"
 multi_line_output = 3
-line_length = 88
+line_length = 120
 known_first_party = ["blogtool"]
 known_third_party = ["PySide6", "pytest"]
+
+[tool.flake8]
+max-line-length = 120
+extend-ignore = ["E203", "W503"]
+exclude = [".venv", "build", "dist"]
 
 [tool.mypy]
 python_version = "3.9"

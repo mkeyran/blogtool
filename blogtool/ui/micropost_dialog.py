@@ -34,9 +34,7 @@ class MicropostDialog(QDialog):
         title_layout = QHBoxLayout()
         title_layout.addWidget(QLabel("Title (optional):"))
         self.title_edit = QLineEdit()
-        self.title_edit.setPlaceholderText(
-            "Leave empty for auto-generated filename"
-        )
+        self.title_edit.setPlaceholderText("Leave empty for auto-generated filename")
         self.title_edit.textChanged.connect(self._update_filename)
         title_layout.addWidget(self.title_edit)
         layout.addLayout(title_layout)
@@ -45,9 +43,7 @@ class MicropostDialog(QDialog):
         filename_layout = QHBoxLayout()
         filename_layout.addWidget(QLabel("Filename:"))
         self.filename_label = QLabel()
-        self.filename_label.setStyleSheet(
-            "font-family: monospace; color: #666;"
-        )
+        self.filename_label.setStyleSheet("font-family: monospace; color: #666;")
         filename_layout.addWidget(self.filename_label)
         layout.addLayout(filename_layout)
 

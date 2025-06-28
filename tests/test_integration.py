@@ -40,26 +40,19 @@ class TestRealHugoIntegration:
             pytest.skip("Hugo blog not available for integration testing")
 
         test_content = (
-            f"This is a test micropost created during automated testing.\n\n"
-            f"Filename: {temp_micropost_name}"
+            f"This is a test micropost created during automated testing.\n\n" f"Filename: {temp_micropost_name}"
         )
 
         # Create the micropost
-        success, message = manager.create_micropost(
-            temp_micropost_name, test_content
-        )
+        success, message = manager.create_micropost(temp_micropost_name, test_content)
 
         # Verify creation
         assert success, f"Failed to create micropost: {message}"
         assert "successfully" in message.lower()
 
         # Verify file exists in the correct location
-        expected_file = (
-            manager.blog_path / "content" / "microposts" / temp_micropost_name
-        )
-        assert expected_file.exists(), (
-            f"Micropost file not found: {expected_file}"
-        )
+        expected_file = manager.blog_path / "content" / "microposts" / temp_micropost_name
+        assert expected_file.exists(), f"Micropost file not found: {expected_file}"
 
         # Verify content
         content = expected_file.read_text(encoding="utf-8")
@@ -71,9 +64,7 @@ class TestRealHugoIntegration:
         try:
             expected_file.unlink()
         except Exception as e:
-            print(
-                f"Warning: Could not clean up test file {expected_file}: {e}"
-            )
+            print(f"Warning: Could not clean up test file {expected_file}: {e}")
 
     def test_micropost_front_matter_format(self):
         """Test that generated microposts have correct front matter format."""
@@ -87,15 +78,9 @@ class TestRealHugoIntegration:
         existing_microposts = list(microposts_dir.glob("*.md"))
 
         # Filter out index and non-date files
-        date_microposts = [
-            f
-            for f in existing_microposts
-            if f.name != "_index.md" and f.name.startswith("2025-")
-        ]
+        date_microposts = [f for f in existing_microposts if f.name != "_index.md" and f.name.startswith("2025-")]
 
-        assert len(date_microposts) > 0, (
-            "No existing microposts found to verify format"
-        )
+        assert len(date_microposts) > 0, "No existing microposts found to verify format"
 
         # Read an existing micropost to check format
         sample_micropost = date_microposts[0]

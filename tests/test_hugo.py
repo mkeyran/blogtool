@@ -34,9 +34,7 @@ class TestHugoManager:
             (sibling_blog / "hugo.toml").touch()
             (sibling_blog / "content").mkdir()
 
-            with patch(
-                "pathlib.Path.cwd", return_value=temp_path / "blogtool"
-            ):
+            with patch("pathlib.Path.cwd", return_value=temp_path / "blogtool"):
                 manager = HugoManager()
                 assert manager.blog_path == sibling_blog
                 assert manager.is_blog_available()
@@ -82,17 +80,11 @@ class TestHugoManager:
             # Create mock file that hugo would create
             test_file = microposts_dir / "2025-06-28-test.md"
             test_file.write_text(
-                "---\n"
-                "date: '2025-06-28T10:00:00+02:00'\n"
-                "draft: false\n"
-                "description: ''\n"
-                "---\n"
+                "---\n" "date: '2025-06-28T10:00:00+02:00'\n" "draft: false\n" "description: ''\n" "---\n"
             )
 
             manager = HugoManager(str(temp_path))
-            success, message = manager.create_micropost(
-                "2025-06-28-test.md", "Test content"
-            )
+            success, message = manager.create_micropost("2025-06-28-test.md", "Test content")
 
             assert success
             assert "successfully" in message
@@ -128,9 +120,7 @@ class TestHugoManager:
             mock_run.return_value = Mock(returncode=1, stderr="Hugo error")
 
             manager = HugoManager(str(temp_path))
-            success, message = manager.create_micropost(
-                "2025-06-28-test.md", "Test content"
-            )
+            success, message = manager.create_micropost("2025-06-28-test.md", "Test content")
 
             assert not success
             assert "Hugo command failed" in message

@@ -31,21 +31,29 @@ The project follows an MVP approach with 7 phases, prioritizing the most common 
 - Comprehensive test coverage including real Hugo integration
 - Creates microposts in correct `content/microposts/` directory
 
-## Phase 2: Git Operations
+## Phase 2: Git Operations ✅ COMPLETED
 **Goal**: Add version control workflow (second most important)
 
-### 2.1 Basic Git Status
-- [ ] Show git status in status bar or simple panel
-- [ ] Display modified files count
-- [ ] Test: Reflects actual git state
+### 2.1 Basic Git Status ✅
+- [x] Show git status in status bar or simple panel
+- [x] Display modified files count
+- [x] Test: Reflects actual git state
 
-### 2.2 Commit & Push Workflow
-- [ ] Add commit dialog with message input
-- [ ] Implement commit + push in one action
-- [ ] Add commit message templates for blog posts
-- [ ] Test: Creates real git commits and pushes
+### 2.2 Commit & Push Workflow ✅
+- [x] Add commit dialog with message input
+- [x] Implement commit + push in one action
+- [x] Add commit message templates for blog posts
+- [x] Test: Creates real git commits and pushes
 
-**Deliverable**: Complete micropost → git workflow (write and publish)
+**Deliverable**: ✅ Complete micropost → git workflow (write and publish)
+
+**Implementation Details**:
+- `GitManager` class for git operations with status tracking
+- Status bar shows current branch, file change counts, and unpushed commits
+- `CommitDialog` with predefined templates for common blog operations
+- One-click commit and push functionality in File menu (Ctrl+Shift+C)
+- Comprehensive test coverage including unit tests and integration tests
+- Real-time git status updates and automatic refresh after operations
 
 ## Phase 3: Content Browser Basics
 **Goal**: Add ability to see and manage existing content

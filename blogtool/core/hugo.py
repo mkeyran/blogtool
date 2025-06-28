@@ -58,9 +58,7 @@ class HugoManager:
 
         return has_config and has_content
 
-    def create_micropost(
-        self, filename: str, content: str
-    ) -> Tuple[bool, str]:
+    def create_micropost(self, filename: str, content: str) -> Tuple[bool, str]:
         """Create a new micropost using Hugo CLI.
 
         Args:
