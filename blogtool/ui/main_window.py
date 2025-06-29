@@ -504,11 +504,68 @@ class MainWindow(QMainWindow):
                 return
 
         # Open browser to server URL
+        import platform
+        import subprocess
         import webbrowser
 
         server_url = self.server_manager.get_server_url()
+
+        # Try platform-specific browser opening with fallback
         try:
-            webbrowser.open(server_url)
+            system = platform.system()
+
+            if system == "Linux":
+                # Try multiple approaches for Linux due to xdg-open issues
+                linux_commands = [
+                    ["xdg-open", server_url],
+                    ["firefox", server_url],
+                    ["chromium", server_url],
+                    ["google-chrome", server_url],
+                    ["sensible-browser", server_url],
+                ]
+
+                success = False
+                last_error = None
+
+                for cmd in linux_commands:
+                    try:
+                        result = subprocess.run(
+                            cmd,
+                            timeout=10,
+                            capture_output=True,
+                            text=True,
+                        )
+
+                        # Special handling for xdg-open KDE compatibility issues
+                        if cmd[0] == "xdg-open" and hasattr(result, "stderr") and result.stderr:
+                            error_indicators = [
+                                "kfmclient: command not found",
+                                "integer expression expected",
+                                "No such file or directory",
+                            ]
+                            try:
+                                if any(indicator in result.stderr for indicator in error_indicators):
+                                    last_error = Exception(f"xdg-open failed: {result.stderr.strip()}")
+                                    continue
+                            except (TypeError, AttributeError):
+                                pass
+
+                        success = True
+                        break
+                    except FileNotFoundError as e:
+                        last_error = e
+                        continue
+                    except subprocess.TimeoutExpired:
+                        success = True
+                        break
+
+                if not success:
+                    # Fall back to webbrowser module
+                    webbrowser.open(server_url)
+            else:
+                # Use webbrowser for other platforms
+                webbrowser.open(server_url)
+
         except Exception as e:
             QMessageBox.critical(
                 self,

@@ -256,10 +256,38 @@ def test_preview_site_server_running(main_window):
     main_window.server_manager.is_running.return_value = True
     main_window.server_manager.get_server_url.return_value = "http://localhost:1313"
 
-    with patch("webbrowser.open") as mock_browser:
-        main_window._preview_site()
+    # Mock platform.system to return non-Linux to use webbrowser directly
+    with patch("platform.system", return_value="Darwin"):  # macOS
+        with patch("webbrowser.open") as mock_browser:
+            main_window._preview_site()
 
-        mock_browser.assert_called_once_with("http://localhost:1313")
+            mock_browser.assert_called_once_with("http://localhost:1313")
+
+
+def test_preview_site_linux_xdg_open_success(main_window):
+    """Test preview site on Linux with successful xdg-open."""
+    main_window.server_manager.is_running.return_value = True
+    main_window.server_manager.get_server_url.return_value = "http://localhost:1313"
+
+    # Mock platform.system to return Linux
+    with patch("platform.system", return_value="Linux"):
+        # Mock xdg-open to succeed
+        def mock_subprocess_run(cmd, **kwargs):
+            mock_result = Mock()
+            mock_result.returncode = 0
+            mock_result.stderr = ""
+            return mock_result
+
+        with patch("subprocess.run", side_effect=mock_subprocess_run) as mock_run:
+            main_window._preview_site()
+
+            # Should call xdg-open with the URL
+            mock_run.assert_called_once_with(
+                ["xdg-open", "http://localhost:1313"],
+                timeout=10,
+                capture_output=True,
+                text=True,
+            )
 
 
 def test_preview_site_server_not_running_start_yes(main_window):
@@ -269,11 +297,13 @@ def test_preview_site_server_not_running_start_yes(main_window):
     main_window.server_manager.get_server_url.return_value = "http://localhost:1313"
 
     with patch("blogtool.ui.main_window.QMessageBox.question", return_value=16384):  # Yes
-        with patch("webbrowser.open") as mock_browser:
-            main_window._preview_site()
+        # Mock platform.system to return non-Linux to use webbrowser directly
+        with patch("platform.system", return_value="Darwin"):  # macOS
+            with patch("webbrowser.open") as mock_browser:
+                main_window._preview_site()
 
-            main_window.server_manager.start_server.assert_called_once()
-            mock_browser.assert_called_once_with("http://localhost:1313")
+                main_window.server_manager.start_server.assert_called_once()
+                mock_browser.assert_called_once_with("http://localhost:1313")
 
 
 def test_preview_site_server_not_running_start_no(main_window):
@@ -308,11 +338,46 @@ def test_preview_site_browser_fails(main_window):
     main_window.server_manager.is_running.return_value = True
     main_window.server_manager.get_server_url.return_value = "http://localhost:1313"
 
-    with patch("webbrowser.open", side_effect=Exception("Browser failed")):
-        with patch("blogtool.ui.main_window.QMessageBox.critical") as mock_critical:
-            main_window._preview_site()
+    # Mock platform.system to return Linux to test the Linux-specific logic
+    with patch("platform.system", return_value="Linux"):
+        # Mock subprocess.run to fail for all browser commands
+        with patch("subprocess.run", side_effect=FileNotFoundError("No browser found")):
+            # Mock webbrowser.open to also fail (fallback)
+            with patch("webbrowser.open", side_effect=Exception("Browser failed")):
+                with patch("blogtool.ui.main_window.QMessageBox.critical") as mock_critical:
+                    main_window._preview_site()
 
-            mock_critical.assert_called_once()
+                    mock_critical.assert_called_once()
+
+
+def test_preview_site_xdg_open_kde_fallback(main_window):
+    """Test preview site with xdg-open KDE compatibility issues."""
+    main_window.server_manager.is_running.return_value = True
+    main_window.server_manager.get_server_url.return_value = "http://localhost:1313"
+
+    # Mock platform.system to return Linux
+    with patch("platform.system", return_value="Linux"):
+        # Mock xdg-open to fail with KDE error, but firefox to succeed
+        def mock_subprocess_run(cmd, **kwargs):
+            if cmd[0] == "xdg-open":
+                mock_result = Mock()
+                mock_result.returncode = 1
+                mock_result.stderr = "kfmclient: command not found\ninteger expression expected"
+                return mock_result
+            elif cmd[0] == "firefox":
+                mock_result = Mock()
+                mock_result.returncode = 0
+                mock_result.stderr = ""
+                return mock_result
+            else:
+                raise FileNotFoundError("Command not found")
+
+        with patch("subprocess.run", side_effect=mock_subprocess_run):
+            # Should succeed with firefox fallback, no error dialog
+            with patch("blogtool.ui.main_window.QMessageBox.critical") as mock_critical:
+                main_window._preview_site()
+
+                mock_critical.assert_not_called()
 
 
 def test_close_event_cleanup(main_window):
