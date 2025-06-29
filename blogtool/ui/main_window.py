@@ -194,7 +194,9 @@ class MainWindow(QMainWindow):
             micropost_data = dialog.get_micropost_data()
 
             # Create the micropost
-            success, message = self.hugo_manager.create_micropost(micropost_data["filename"], micropost_data["content"])
+            success, message = self.hugo_manager.create_micropost(
+                micropost_data["filename"], micropost_data["content"]
+            )
 
             if success:
                 QMessageBox.information(
@@ -260,19 +262,22 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(
                 self,
                 "Not a Git Repository",
-                "The blog directory is not a git repository.\n\n" "Please initialize git in your blog directory first.",
+                "The blog directory is not a git repository.\n\n"
+                "Please initialize git in your blog directory first.",
             )
             return
 
         # Get current git status to show in dialog
         status = self.git_manager.get_status()
-        total_changes = status.modified_files + status.staged_files + status.untracked_files
+        total_changes = (
+            status.modified_files + status.staged_files + status.untracked_files
+        )
 
         if total_changes == 0:
             QMessageBox.information(
                 self,
                 "No Changes",
-                "There are no changes to commit.\n\n" "The working directory is clean.",
+                "There are no changes to commit.\n\nThe working directory is clean.",
             )
             return
 
@@ -367,7 +372,9 @@ class MainWindow(QMainWindow):
             status_parts.append(f"Branch: {status.current_branch}")
 
         # Show file counts
-        total_changes = status.modified_files + status.staged_files + status.untracked_files
+        total_changes = (
+            status.modified_files + status.staged_files + status.untracked_files
+        )
         if total_changes > 0:
             status_parts.append(f"Changes: {total_changes}")
 
@@ -485,7 +492,8 @@ class MainWindow(QMainWindow):
             reply = QMessageBox.question(
                 self,
                 "Server Not Running",
-                "Hugo server is not currently running.\n\n" "Would you like to start the server first?",
+                "Hugo server is not currently running.\n\n"
+                "Would you like to start the server first?",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 QMessageBox.StandardButton.Yes,
             )
@@ -517,6 +525,7 @@ class MainWindow(QMainWindow):
             if system == "Linux":
                 # Try multiple approaches for Linux due to xdg-open issues
                 linux_commands = [
+                    ["vivaldi", server_url],
                     ["xdg-open", server_url],
                     ["firefox", server_url],
                     ["chromium", server_url],
@@ -537,15 +546,24 @@ class MainWindow(QMainWindow):
                         )
 
                         # Special handling for xdg-open KDE compatibility issues
-                        if cmd[0] == "xdg-open" and hasattr(result, "stderr") and result.stderr:
+                        if (
+                            cmd[0] == "xdg-open"
+                            and hasattr(result, "stderr")
+                            and result.stderr
+                        ):
                             error_indicators = [
                                 "kfmclient: command not found",
                                 "integer expression expected",
                                 "No such file or directory",
                             ]
                             try:
-                                if any(indicator in result.stderr for indicator in error_indicators):
-                                    last_error = Exception(f"xdg-open failed: {result.stderr.strip()}")
+                                if any(
+                                    indicator in result.stderr
+                                    for indicator in error_indicators
+                                ):
+                                    last_error = Exception(
+                                        f"xdg-open failed: {result.stderr.strip()}"
+                                    )
                                     continue
                             except (TypeError, AttributeError):
                                 pass
@@ -570,7 +588,8 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(
                 self,
                 "Browser Launch Failed",
-                f"Failed to open browser:\n\n{e}\n\n" f"Please manually navigate to: {server_url}",
+                f"Failed to open browser:\n\n{e}\n\n"
+                f"Please manually navigate to: {server_url}",
             )
 
     def closeEvent(self, event):
