@@ -152,12 +152,12 @@ def test_main_window_git_status_clean(main_window):
     assert "Clean" in status_text
 
 
-def test_main_window_git_timer_setup(main_window):
-    """Test that git status timer is set up."""
-    assert hasattr(main_window, "git_timer")
-    assert main_window.git_timer.isActive()
+def test_main_window_status_timer_setup(main_window):
+    """Test that status timer is set up."""
+    assert hasattr(main_window, "status_timer")
+    assert main_window.status_timer.isActive()
     # Timer should update every 30 seconds (30000 ms)
-    assert main_window.git_timer.interval() == 30000
+    assert main_window.status_timer.interval() == 30000
 
 
 def test_main_window_refreshes_git_after_micropost(main_window):

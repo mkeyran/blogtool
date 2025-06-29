@@ -116,7 +116,7 @@ The project follows an iterative MVP approach with 7 phases, prioritizing the mo
 2. **Phase 2**: ✅ **COMPLETED** - Git Operations - commit and push workflow 
 3. **Phase 3**: ✅ **COMPLETED** - Content Browser Basics - view and manage existing microposts
 4. **Phase 4**: ✅ **COMPLETED** - Full Post Support - regular posts and conversations
-5. **Phase 5**: Hugo Server Integration - preview capabilities
+5. **Phase 5**: ✅ **COMPLETED** - Hugo Server Integration - preview capabilities
 6. **Phase 6**: Publishing Pipeline - draft ↔ published workflow
 7. **Phase 7**: Polish & Settings - configuration and UX improvements
 
@@ -157,8 +157,21 @@ Each phase delivers working software that provides immediate value. The order pr
 - Language-specific content directory mapping (english/russian/polish) with proper Hugo CLI integration
 - Complete front matter management including title, description, tags, keywords, and metadata
 - Path preview and auto-slug generation with real-time validation in creation dialogs
-- Main window integration with keyboard shortcuts (Ctrl+P for posts, Ctrl+Shift+P for conversations)
+- Main window integration with keyboard shortcuts (Ctrl+P for posts, Ctrl+Shift+N for conversations)
 - Comprehensive test coverage with 28 new tests covering dialog functionality and Hugo integration
 - Full error handling and user feedback for content creation workflows
+- ContentBrowser with draft status filtering and individual content commit functionality
 
-**Next Priority**: Phase 5 (Hugo Server Integration) to add preview capabilities and complete the development workflow.
+**Phase 5 Complete**: Hugo Server Integration now provides complete preview and development workflow:
+- HugoServerManager class for full Hugo development server lifecycle management
+- Server menu with Start/Stop/Restart/Preview Site actions and keyboard shortcuts (Ctrl+Shift+S/T/R/P)
+- Real-time server status display in status bar showing running state and URL (e.g., "Server: Running (http://localhost:1313)")
+- Intelligent preview functionality that offers to start server automatically if not running
+- Cross-platform browser integration using webbrowser module for site preview
+- Process cleanup on application exit to prevent orphaned Hugo processes
+- Server configuration with drafts and future content enabled for development
+- Server response verification and graceful error handling for common issues
+- Comprehensive test coverage with 43 new tests covering server functionality and UI integration
+- Full error handling with user-friendly messages for Hugo command not found, port conflicts, etc.
+
+**Next Priority**: Phase 6 (Publishing Pipeline) to add draft ↔ published workflow management.

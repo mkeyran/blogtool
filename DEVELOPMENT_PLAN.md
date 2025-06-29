@@ -102,21 +102,31 @@ The project follows an MVP approach with 7 phases, prioritizing the most common 
 
 **Deliverable**: Complete content creation and management
 
-## Phase 5: Hugo Server Integration
+## Phase 5: Hugo Server Integration ✅ COMPLETED
 **Goal**: Add preview capabilities
 
-### 5.1 Server Controls
-- [ ] Add Start/Stop/Restart Hugo server buttons
-- [ ] Show server status (running/stopped + URL)
-- [ ] Basic process management
-- [ ] Test: Server starts and stops correctly
+### 5.1 Server Controls ✅
+- [x] Add Start/Stop/Restart Hugo server buttons
+- [x] Show server status (running/stopped + URL)
+- [x] Basic process management
+- [x] Test: Server starts and stops correctly
 
-### 5.2 Preview Integration
-- [ ] "Preview Site" button (opens browser to localhost)
+### 5.2 Preview Integration ✅
+- [x] "Preview Site" button (opens browser to localhost)
 - [ ] Server output log viewer (optional)
-- [ ] Test: Preview works with live site
+- [x] Test: Preview works with live site
 
-**Deliverable**: Integrated Hugo server management
+**Deliverable**: ✅ Integrated Hugo server management
+
+**Implementation Details**:
+- `HugoServerManager` class for complete Hugo development server lifecycle management
+- Server menu in main window with Start/Stop/Restart/Preview actions and keyboard shortcuts
+- Real-time server status display in status bar showing running state and URL
+- Intelligent preview functionality that offers to start server if not running
+- Cross-platform browser integration for site preview
+- Process cleanup on application exit to prevent orphaned Hugo processes
+- Comprehensive test coverage with 43 new tests covering server functionality and UI integration
+- Full error handling with user-friendly messages for common issues
 
 ## Phase 6: Publishing Pipeline
 **Goal**: Draft ↔ Published workflow

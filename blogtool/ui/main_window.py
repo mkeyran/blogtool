@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
 
 from ..core.git import GitManager
 from ..core.hugo import HugoManager
+from ..core.hugo_server import HugoServerManager
 from .commit_dialog import CommitDialog
 from .content_browser import ContentBrowser
 from .conversation_dialog import ConversationDialog
@@ -33,6 +34,7 @@ class MainWindow(QMainWindow):
         # Initialize managers
         self.hugo_manager = HugoManager()
         self.git_manager = GitManager(self.hugo_manager.get_blog_path())
+        self.server_manager = HugoServerManager(self.hugo_manager.get_blog_path())
 
         # Create central widget
         central_widget = QWidget()
@@ -53,8 +55,8 @@ class MainWindow(QMainWindow):
         # Create status bar
         self._create_status_bar()
 
-        # Set up timer for git status updates
-        self._setup_git_status_timer()
+        # Set up timer for git and server status updates
+        self._setup_status_timer()
 
     def _create_menu_bar(self):
         """Create the application menu bar."""
@@ -77,7 +79,7 @@ class MainWindow(QMainWindow):
 
         # New Conversation action
         new_conversation_action = QAction("New &Conversation", self)
-        new_conversation_action.setShortcut("Ctrl+Shift+P")
+        new_conversation_action.setShortcut("Ctrl+Shift+N")
         new_conversation_action.triggered.connect(self._create_new_conversation)
         file_menu.addAction(new_conversation_action)
 
@@ -96,6 +98,35 @@ class MainWindow(QMainWindow):
         settings_action.setShortcut("Ctrl+,")
         settings_action.triggered.connect(self._show_settings)
         file_menu.addAction(settings_action)
+
+        # Server menu
+        server_menu = menubar.addMenu("&Server")
+
+        # Start Server action
+        start_server_action = QAction("&Start Server", self)
+        start_server_action.setShortcut("Ctrl+Shift+S")
+        start_server_action.triggered.connect(self._start_server)
+        server_menu.addAction(start_server_action)
+
+        # Stop Server action
+        stop_server_action = QAction("St&op Server", self)
+        stop_server_action.setShortcut("Ctrl+Shift+T")
+        stop_server_action.triggered.connect(self._stop_server)
+        server_menu.addAction(stop_server_action)
+
+        # Restart Server action
+        restart_server_action = QAction("&Restart Server", self)
+        restart_server_action.setShortcut("Ctrl+Shift+R")
+        restart_server_action.triggered.connect(self._restart_server)
+        server_menu.addAction(restart_server_action)
+
+        server_menu.addSeparator()
+
+        # Preview Site action
+        preview_site_action = QAction("&Preview Site", self)
+        preview_site_action.setShortcut("Ctrl+Shift+P")
+        preview_site_action.triggered.connect(self._preview_site)
+        server_menu.addAction(preview_site_action)
 
         # Help menu
         help_menu = menubar.addMenu("&Help")
@@ -275,13 +306,15 @@ class MainWindow(QMainWindow):
             # Refresh managers in case blog path changed
             self.hugo_manager = HugoManager()
             self.git_manager = GitManager(self.hugo_manager.get_blog_path())
+            self.server_manager = HugoServerManager(self.hugo_manager.get_blog_path())
 
             # Update content browser with new hugo manager
             self.content_browser.hugo_manager = self.hugo_manager
             self.content_browser.refresh()
 
-            # Update git status
+            # Update status
             self._update_git_status()
+            self._update_server_status()
 
     def _show_about_dialog(self):
         """Show the About dialog."""
@@ -303,15 +336,21 @@ class MainWindow(QMainWindow):
         self.git_status_label = QLabel("Git: Loading...")
         self.status_bar.addPermanentWidget(self.git_status_label)
 
-        # Update git status immediately
-        self._update_git_status()
+        # Create server status label
+        self.server_status_label = QLabel("Server: Stopped")
+        self.status_bar.addPermanentWidget(self.server_status_label)
 
-    def _setup_git_status_timer(self):
-        """Set up timer for periodic git status updates."""
-        self.git_timer = QTimer()
-        self.git_timer.timeout.connect(self._update_git_status)
+        # Update status immediately
+        self._update_git_status()
+        self._update_server_status()
+
+    def _setup_status_timer(self):
+        """Set up timer for periodic git and server status updates."""
+        self.status_timer = QTimer()
+        self.status_timer.timeout.connect(self._update_git_status)
+        self.status_timer.timeout.connect(self._update_server_status)
         # Update every 30 seconds
-        self.git_timer.start(30000)
+        self.status_timer.start(30000)
 
     def _update_git_status(self):
         """Update git status display."""
@@ -341,3 +380,145 @@ class MainWindow(QMainWindow):
             status_parts.append("Clean")
 
         self.git_status_label.setText(f"Git: {' | '.join(status_parts)}")
+
+    def _update_server_status(self):
+        """Update Hugo server status display."""
+        status = self.server_manager.get_status()
+
+        if status.is_running:
+            self.server_status_label.setText(f"Server: Running ({status.url})")
+        else:
+            self.server_status_label.setText("Server: Stopped")
+
+    def _start_server(self):
+        """Start the Hugo development server."""
+        if not self.hugo_manager.is_blog_available():
+            QMessageBox.warning(
+                self,
+                "Hugo Blog Not Found",
+                "Could not find a Hugo blog in the expected location.\n\n"
+                "Please configure your blog path in Settings.",
+            )
+            return
+
+        if self.server_manager.is_running():
+            QMessageBox.information(
+                self,
+                "Server Already Running",
+                f"Hugo server is already running at {self.server_manager.get_server_url()}",
+            )
+            return
+
+        success, message = self.server_manager.start_server()
+
+        if success:
+            QMessageBox.information(
+                self,
+                "Server Started",
+                f"Hugo server started successfully!\n\n{message}",
+            )
+            self._update_server_status()
+        else:
+            QMessageBox.critical(
+                self,
+                "Server Start Failed",
+                f"Failed to start Hugo server:\n\n{message}",
+            )
+
+    def _stop_server(self):
+        """Stop the Hugo development server."""
+        if not self.server_manager.is_running():
+            QMessageBox.information(
+                self,
+                "Server Not Running",
+                "Hugo server is not currently running.",
+            )
+            return
+
+        success, message = self.server_manager.stop_server()
+
+        if success:
+            QMessageBox.information(
+                self,
+                "Server Stopped",
+                f"Hugo server stopped successfully!\n\n{message}",
+            )
+            self._update_server_status()
+        else:
+            QMessageBox.critical(
+                self,
+                "Server Stop Failed",
+                f"Failed to stop Hugo server:\n\n{message}",
+            )
+
+    def _restart_server(self):
+        """Restart the Hugo development server."""
+        if not self.hugo_manager.is_blog_available():
+            QMessageBox.warning(
+                self,
+                "Hugo Blog Not Found",
+                "Could not find a Hugo blog in the expected location.\n\n"
+                "Please configure your blog path in Settings.",
+            )
+            return
+
+        success, message = self.server_manager.restart_server()
+
+        if success:
+            QMessageBox.information(
+                self,
+                "Server Restarted",
+                f"Hugo server restarted successfully!\n\n{message}",
+            )
+            self._update_server_status()
+        else:
+            QMessageBox.critical(
+                self,
+                "Server Restart Failed",
+                f"Failed to restart Hugo server:\n\n{message}",
+            )
+
+    def _preview_site(self):
+        """Open the site in the default web browser."""
+        if not self.server_manager.is_running():
+            # Ask if user wants to start server
+            reply = QMessageBox.question(
+                self,
+                "Server Not Running",
+                "Hugo server is not currently running.\n\n" "Would you like to start the server first?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.Yes,
+            )
+
+            if reply == QMessageBox.StandardButton.Yes:
+                success, message = self.server_manager.start_server()
+                if not success:
+                    QMessageBox.critical(
+                        self,
+                        "Server Start Failed",
+                        f"Failed to start Hugo server:\n\n{message}",
+                    )
+                    return
+                self._update_server_status()
+            else:
+                return
+
+        # Open browser to server URL
+        import webbrowser
+
+        server_url = self.server_manager.get_server_url()
+        try:
+            webbrowser.open(server_url)
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "Browser Launch Failed",
+                f"Failed to open browser:\n\n{e}\n\n" f"Please manually navigate to: {server_url}",
+            )
+
+    def closeEvent(self, event):
+        """Handle application close event."""
+        # Clean up server manager
+        if hasattr(self, "server_manager"):
+            self.server_manager.cleanup()
+        event.accept()
