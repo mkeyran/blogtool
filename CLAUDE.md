@@ -113,9 +113,9 @@ Remember: This workflow ensures code quality, maintainability, and reliability. 
 The project follows an iterative MVP approach with 7 phases, prioritizing the most common workflow:
 
 1. **Phase 1**: ✅ **COMPLETED** - Basic GUI + Micropost Creator (Playable MVP) - Qt window + micropost creation
-2. **Phase 2**: Git Operations - commit and push workflow 
-3. **Phase 3**: Content Browser Basics - view and manage existing microposts
-4. **Phase 4**: Full Post Support - regular posts and conversations
+2. **Phase 2**: ✅ **COMPLETED** - Git Operations - commit and push workflow 
+3. **Phase 3**: ✅ **COMPLETED** - Content Browser Basics - view and manage existing microposts
+4. **Phase 4**: ✅ **COMPLETED** - Full Post Support - regular posts and conversations
 5. **Phase 5**: Hugo Server Integration - preview capabilities
 6. **Phase 6**: Publishing Pipeline - draft ↔ published workflow
 7. **Phase 7**: Polish & Settings - configuration and UX improvements
@@ -150,4 +150,15 @@ Each phase delivers working software that provides immediate value. The order pr
 - Comprehensive test coverage for browser functionality and Hugo micropost parsing
 - Integrated into main window with real-time updates and git status synchronization
 
-**Next Priority**: Phase 4 (Full Post Support) to extend functionality to regular posts and conversations.
+**Phase 4 Complete**: Full Post Support now provides comprehensive content creation capabilities:
+- PostDialog for regular blog post creation with multi-language support (English, Russian, Polish)
+- ConversationDialog for interview/dialogue content creation using conversations archetype
+- Extended HugoManager with create_post() and create_conversation() methods supporting all languages
+- Language-specific content directory mapping (english/russian/polish) with proper Hugo CLI integration
+- Complete front matter management including title, description, tags, keywords, and metadata
+- Path preview and auto-slug generation with real-time validation in creation dialogs
+- Main window integration with keyboard shortcuts (Ctrl+P for posts, Ctrl+Shift+P for conversations)
+- Comprehensive test coverage with 28 new tests covering dialog functionality and Hugo integration
+- Full error handling and user feedback for content creation workflows
+
+**Next Priority**: Phase 5 (Hugo Server Integration) to add preview capabilities and complete the development workflow.

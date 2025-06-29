@@ -15,8 +15,10 @@ from PySide6.QtWidgets import (
 from ..core.git import GitManager
 from ..core.hugo import HugoManager
 from .commit_dialog import CommitDialog
+from .conversation_dialog import ConversationDialog
 from .micropost_browser import MicropostBrowser
 from .micropost_dialog import MicropostDialog
+from .post_dialog import PostDialog
 from .settings_dialog import SettingsDialog
 
 
@@ -61,11 +63,23 @@ class MainWindow(QMainWindow):
         # File menu
         file_menu = menubar.addMenu("&File")
 
+        # New Post action
+        new_post_action = QAction("New &Post", self)
+        new_post_action.setShortcut("Ctrl+P")
+        new_post_action.triggered.connect(self._create_new_post)
+        file_menu.addAction(new_post_action)
+
         # New Micropost action
         new_micropost_action = QAction("New &Micropost", self)
         new_micropost_action.setShortcut("Ctrl+M")
         new_micropost_action.triggered.connect(self._create_new_micropost)
         file_menu.addAction(new_micropost_action)
+
+        # New Conversation action
+        new_conversation_action = QAction("New &Conversation", self)
+        new_conversation_action.setShortcut("Ctrl+Shift+P")
+        new_conversation_action.triggered.connect(self._create_new_conversation)
+        file_menu.addAction(new_conversation_action)
 
         file_menu.addSeparator()
 
@@ -90,6 +104,47 @@ class MainWindow(QMainWindow):
         about_action = QAction("&About", self)
         about_action.triggered.connect(self._show_about_dialog)
         help_menu.addAction(about_action)
+
+    def _create_new_post(self):
+        """Create a new blog post."""
+        if not self.hugo_manager.is_blog_available():
+            QMessageBox.warning(
+                self,
+                "Hugo Blog Not Found",
+                "Could not find a Hugo blog in the expected location.\n\n"
+                "Please configure your blog path in Settings.",
+            )
+            return
+
+        dialog = PostDialog(self)
+        if dialog.exec() == QDialog.Accepted:
+            post_data = dialog.get_post_data()
+
+            # Create the post
+            success, message = self.hugo_manager.create_post(
+                title=post_data["title"],
+                slug=post_data["slug"],
+                language=post_data["language"],
+                description=post_data["description"],
+                tags=post_data["tags"],
+                keywords=post_data["keywords"],
+            )
+
+            if success:
+                QMessageBox.information(
+                    self,
+                    "Post Created",
+                    f"Post created successfully!\n\n{message}\n\n"
+                    "You can now open it in your editor to start writing.",
+                )
+                # Refresh git status after creating content
+                self._update_git_status()
+            else:
+                QMessageBox.critical(
+                    self,
+                    "Error Creating Post",
+                    f"Failed to create post:\n\n{message}",
+                )
 
     def _create_new_micropost(self):
         """Create a new micropost."""
@@ -124,6 +179,47 @@ class MainWindow(QMainWindow):
                     self,
                     "Error Creating Micropost",
                     f"Failed to create micropost:\n\n{message}",
+                )
+
+    def _create_new_conversation(self):
+        """Create a new conversation."""
+        if not self.hugo_manager.is_blog_available():
+            QMessageBox.warning(
+                self,
+                "Hugo Blog Not Found",
+                "Could not find a Hugo blog in the expected location.\n\n"
+                "Please configure your blog path in Settings.",
+            )
+            return
+
+        dialog = ConversationDialog(self)
+        if dialog.exec() == QDialog.Accepted:
+            conversation_data = dialog.get_conversation_data()
+
+            # Create the conversation
+            success, message = self.hugo_manager.create_conversation(
+                title=conversation_data["title"],
+                slug=conversation_data["slug"],
+                language=conversation_data["language"],
+                description=conversation_data["description"],
+                tags=conversation_data["tags"],
+                keywords=conversation_data["keywords"],
+            )
+
+            if success:
+                QMessageBox.information(
+                    self,
+                    "Conversation Created",
+                    f"Conversation created successfully!\n\n{message}\n\n"
+                    "You can now open it in your editor to start writing.",
+                )
+                # Refresh git status after creating content
+                self._update_git_status()
+            else:
+                QMessageBox.critical(
+                    self,
+                    "Error Creating Conversation",
+                    f"Failed to create conversation:\n\n{message}",
                 )
 
     def _commit_and_push(self):

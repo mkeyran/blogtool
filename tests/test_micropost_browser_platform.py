@@ -172,14 +172,18 @@ class TestMicropostBrowserPlatform:
 
     @patch("platform.system")
     @patch("subprocess.run")
-    def test_open_folder_linux_xdg_open_stderr_fallback(self, mock_subprocess, mock_platform, app, mock_hugo_manager, sample_micropost):
+    def test_open_folder_linux_xdg_open_stderr_fallback(
+        self, mock_subprocess, mock_platform, app, mock_hugo_manager, sample_micropost
+    ):
         """Test opening folder on Linux when xdg-open fails with stderr errors."""
         mock_platform.return_value = "Linux"
         mock_hugo_manager.list_microposts.return_value = [sample_micropost]
 
         # Mock xdg-open returning 0 but with stderr indicating failure, then dolphin success
         mock_subprocess.side_effect = [
-            Mock(returncode=0, stderr="kfmclient: command not found\ninteger expression expected", stdout=""),  # xdg-open fake success
+            Mock(
+                returncode=0, stderr="kfmclient: command not found\ninteger expression expected", stdout=""
+            ),  # xdg-open fake success
             Mock(returncode=0, stderr="", stdout=""),  # dolphin succeeds
         ]
 

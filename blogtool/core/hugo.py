@@ -281,3 +281,181 @@ class HugoManager:
             preview = preview[:max_length].rsplit(" ", 1)[0] + "..."
 
         return preview
+
+    def create_post(
+        self,
+        title: str,
+        slug: str,
+        language: str,
+        description: str = "",
+        tags: List[str] = None,
+        keywords: List[str] = None,
+    ) -> Tuple[bool, str]:
+        """Create a new blog post using Hugo CLI.
+
+        Args:
+            title: Title of the post
+            slug: URL-friendly slug for the post
+            language: Language code (en, ru, pl)
+            description: Brief description of the post
+            tags: List of tags
+            keywords: List of keywords
+
+        Returns:
+            Tuple of (success: bool, message: str)
+        """
+        if not self.blog_path:
+            return False, "Hugo blog not found. Please check blog path."
+
+        try:
+            # Map language codes to content directories
+            language_map = {"en": "english", "ru": "russian", "pl": "polish"}
+
+            language_dir = language_map.get(language, "english")
+            post_path = f"content/{language_dir}/posts/{slug}/index.md"
+
+            # Run hugo new content command
+            result = subprocess.run(
+                [
+                    "hugo",
+                    "new",
+                    "content",
+                    post_path,
+                ],
+                cwd=self.blog_path,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+
+            if result.returncode != 0:
+                return False, f"Hugo command failed: {result.stderr}"
+
+            # Path to the created file
+            created_file = self.blog_path / "content" / language_dir / "posts" / slug / "index.md"
+
+            if not created_file.exists():
+                return False, f"File was not created: {created_file}"
+
+            # Update the front matter with provided data
+            self._update_post_front_matter(created_file, title, description, tags or [], keywords or [])
+
+            return True, f"Post created successfully: {post_path}"
+
+        except subprocess.TimeoutExpired:
+            return False, "Hugo command timed out"
+        except subprocess.CalledProcessError as e:
+            return False, f"Hugo command failed: {e}"
+        except Exception as e:
+            return False, f"Error creating post: {e}"
+
+    def create_conversation(
+        self,
+        title: str,
+        slug: str,
+        language: str,
+        description: str = "",
+        tags: List[str] = None,
+        keywords: List[str] = None,
+    ) -> Tuple[bool, str]:
+        """Create a new conversation using Hugo CLI.
+
+        Args:
+            title: Title of the conversation
+            slug: URL-friendly slug for the conversation
+            language: Language code (en, ru, pl)
+            description: Brief description of the conversation
+            tags: List of tags
+            keywords: List of keywords
+
+        Returns:
+            Tuple of (success: bool, message: str)
+        """
+        if not self.blog_path:
+            return False, "Hugo blog not found. Please check blog path."
+
+        try:
+            # Map language codes to content directories
+            language_map = {"en": "english", "ru": "russian", "pl": "polish"}
+
+            language_dir = language_map.get(language, "english")
+            conversation_path = f"content/{language_dir}/conversations/{slug}/index.md"
+
+            # Run hugo new content command with conversations archetype
+            result = subprocess.run(
+                [
+                    "hugo",
+                    "new",
+                    "content",
+                    conversation_path,
+                    "--kind",
+                    "conversations",
+                ],
+                cwd=self.blog_path,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+
+            if result.returncode != 0:
+                return False, f"Hugo command failed: {result.stderr}"
+
+            # Path to the created file
+            created_file = self.blog_path / "content" / language_dir / "conversations" / slug / "index.md"
+
+            if not created_file.exists():
+                return False, f"File was not created: {created_file}"
+
+            # Update the front matter with provided data
+            self._update_post_front_matter(created_file, title, description, tags or [], keywords or [])
+
+            return True, f"Conversation created successfully: {conversation_path}"
+
+        except subprocess.TimeoutExpired:
+            return False, "Hugo command timed out"
+        except subprocess.CalledProcessError as e:
+            return False, f"Hugo command failed: {e}"
+        except Exception as e:
+            return False, f"Error creating conversation: {e}"
+
+    def _update_post_front_matter(
+        self, file_path: Path, title: str, description: str, tags: List[str], keywords: List[str]
+    ) -> None:
+        """Update the front matter of a created post with provided data.
+
+        Args:
+            file_path: Path to the post file
+            title: Title to set
+            description: Description to set
+            tags: List of tags
+            keywords: List of keywords
+        """
+        with open(file_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        # Split front matter and body
+        if content.startswith("---"):
+            parts = content.split("---", 2)
+            if len(parts) >= 3:
+                front_matter = parts[1]
+                body = parts[2] if len(parts) > 2 else ""
+
+                # Update front matter fields
+                front_matter = re.sub(r"title:\s*['\"]?[^'\"]*['\"]?", f"title: '{title}'", front_matter)
+                front_matter = re.sub(
+                    r"description:\s*['\"]?[^'\"]*['\"]?", f"description: '{description}'", front_matter
+                )
+
+                # Format tags and keywords as YAML arrays
+                tags_yaml = str(tags) if tags else "[]"
+                keywords_yaml = str(keywords) if keywords else "[]"
+
+                front_matter = re.sub(r"tags:\s*\[.*?\]", f"tags: {tags_yaml}", front_matter)
+                front_matter = re.sub(r"keywords:\s*\[.*?\]", f"keywords: {keywords_yaml}", front_matter)
+
+                # Reconstruct content
+                new_content = f"---{front_matter}---{body}"
+
+                # Write back to file
+                with open(file_path, "w", encoding="utf-8") as f:
+                    f.write(new_content)
