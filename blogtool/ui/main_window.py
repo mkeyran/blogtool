@@ -15,8 +15,8 @@ from PySide6.QtWidgets import (
 from ..core.git import GitManager
 from ..core.hugo import HugoManager
 from .commit_dialog import CommitDialog
+from .content_browser import ContentBrowser
 from .conversation_dialog import ConversationDialog
-from .micropost_browser import MicropostBrowser
 from .micropost_dialog import MicropostDialog
 from .post_dialog import PostDialog
 from .settings_dialog import SettingsDialog
@@ -42,10 +42,10 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout()
         central_widget.setLayout(layout)
 
-        # Create micropost browser
-        self.micropost_browser = MicropostBrowser(self.hugo_manager)
-        self.micropost_browser.micropost_updated.connect(self._update_git_status)
-        layout.addWidget(self.micropost_browser)
+        # Create content browser
+        self.content_browser = ContentBrowser(self.hugo_manager)
+        self.content_browser.content_updated.connect(self._update_git_status)
+        layout.addWidget(self.content_browser)
 
         # Create menu bar
         self._create_menu_bar()
@@ -171,9 +171,9 @@ class MainWindow(QMainWindow):
                     "Micropost Created",
                     f"Micropost created successfully!\n\n{message}",
                 )
-                # Refresh git status and micropost browser after creating content
+                # Refresh git status and content browser after creating content
                 self._update_git_status()
-                self.micropost_browser.refresh()
+                self.content_browser.refresh()
             else:
                 QMessageBox.critical(
                     self,
@@ -276,9 +276,9 @@ class MainWindow(QMainWindow):
             self.hugo_manager = HugoManager()
             self.git_manager = GitManager(self.hugo_manager.get_blog_path())
 
-            # Update micropost browser with new hugo manager
-            self.micropost_browser.hugo_manager = self.hugo_manager
-            self.micropost_browser.refresh()
+            # Update content browser with new hugo manager
+            self.content_browser.hugo_manager = self.hugo_manager
+            self.content_browser.refresh()
 
             # Update git status
             self._update_git_status()

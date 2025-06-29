@@ -29,6 +29,8 @@ def main_window(qt_app):
         # Mock hugo manager
         mock_hugo_manager = Mock()
         mock_hugo_manager.list_microposts.return_value = []
+        mock_hugo_manager.list_all_content.return_value = []
+        mock_hugo_manager.is_blog_available.return_value = True
         mock_hugo_class.return_value = mock_hugo_manager
 
         # Create mock git manager with proper status
@@ -57,6 +59,8 @@ def test_main_window_creates_git_manager(qt_app):
 
         mock_hugo_instance = Mock()
         mock_hugo_instance.get_blog_path.return_value = "/test/path"
+        mock_hugo_instance.list_all_content.return_value = []
+        mock_hugo_instance.is_blog_available.return_value = True
         mock_hugo_instance.list_microposts.return_value = []
         mock_hugo.return_value = mock_hugo_instance
 
