@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ..core.git import GitManager
 from ..core.hugo import ContentInfo, HugoManager
 from ..core.settings import get_settings
 
@@ -59,6 +60,24 @@ class ContentItem(QWidget):
             )
             lang_badge.setMaximumWidth(30)
             title_row.addWidget(lang_badge)
+
+        # Draft status badge
+        if self.content.is_draft:
+            draft_badge = QLabel("DRAFT")
+            draft_badge.setStyleSheet(
+                "background-color: #f59e0b; color: white; padding: 2px 6px; "
+                "border-radius: 3px; font-size: 9px; font-weight: bold;"
+            )
+            draft_badge.setMaximumWidth(50)
+            title_row.addWidget(draft_badge)
+        else:
+            published_badge = QLabel("PUBLISHED")
+            published_badge.setStyleSheet(
+                "background-color: #10b981; color: white; padding: 2px 6px; "
+                "border-radius: 3px; font-size: 9px; font-weight: bold;"
+            )
+            published_badge.setMaximumWidth(80)
+            title_row.addWidget(published_badge)
 
         title_row.addStretch()
 
@@ -107,6 +126,11 @@ class ContentBrowser(QWidget):
         super().__init__()
         self.hugo_manager = hugo_manager or HugoManager()
         self.settings = get_settings()
+
+        # Initialize GitManager for commit/push functionality
+        blog_path = self.hugo_manager.get_blog_path()
+        self.git_manager = GitManager(str(blog_path)) if blog_path else None
+
         self._setup_ui()
         self._refresh_content()
 
@@ -135,6 +159,17 @@ class ContentBrowser(QWidget):
         self.filter_combo.setMaximumWidth(120)
         header_layout.addWidget(self.filter_combo)
 
+        # Status filter
+        status_label = QLabel("Status:")
+        status_label.setStyleSheet("font-size: 11px; color: #666;")
+        header_layout.addWidget(status_label)
+
+        self.status_filter_combo = QComboBox()
+        self.status_filter_combo.addItems(["All", "Drafts", "Published"])
+        self.status_filter_combo.currentTextChanged.connect(self._apply_filter)
+        self.status_filter_combo.setMaximumWidth(100)
+        header_layout.addWidget(self.status_filter_combo)
+
         # Refresh button
         refresh_btn = QPushButton("Refresh")
         refresh_btn.clicked.connect(self._refresh_content)
@@ -161,6 +196,13 @@ class ContentBrowser(QWidget):
         self.open_folder_btn.clicked.connect(self._open_folder)
         self.open_folder_btn.setEnabled(False)
         button_layout.addWidget(self.open_folder_btn)
+
+        # Commit button for uncommitted changes
+        self.commit_btn = QPushButton("Commit & Push")
+        self.commit_btn.clicked.connect(self._commit_selected_content)
+        self.commit_btn.setEnabled(False)
+        self.commit_btn.setStyleSheet("QPushButton { background-color: #2563eb; color: white; }")
+        button_layout.addWidget(self.commit_btn)
 
         button_layout.addStretch()
 
@@ -195,23 +237,39 @@ class ContentBrowser(QWidget):
         self._apply_filter()
 
     def _apply_filter(self):
-        """Apply the selected content type filter."""
+        """Apply the selected content type and status filters."""
         self.content_list.clear()
 
         if not hasattr(self, "all_content") or not self.all_content:
             return
 
         filter_text = self.filter_combo.currentText().lower()
+        status_filter = self.status_filter_combo.currentText().lower()
 
         filtered_content = []
         for content in self.all_content:
+            # Apply content type filter
+            type_match = False
             if filter_text == "all":
-                filtered_content.append(content)
+                type_match = True
             elif filter_text == "posts" and content.content_type == "post":
-                filtered_content.append(content)
+                type_match = True
             elif filter_text == "conversations" and content.content_type == "conversation":
-                filtered_content.append(content)
+                type_match = True
             elif filter_text == "microposts" and content.content_type == "micropost":
+                type_match = True
+
+            # Apply status filter
+            status_match = False
+            if status_filter == "all":
+                status_match = True
+            elif status_filter == "drafts" and content.is_draft:
+                status_match = True
+            elif status_filter == "published" and not content.is_draft:
+                status_match = True
+
+            # Include content only if both filters match
+            if type_match and status_match:
                 filtered_content.append(content)
 
         # Populate list with filtered content
@@ -238,6 +296,14 @@ class ContentBrowser(QWidget):
         self.open_editor_btn.setEnabled(has_selection)
         self.open_folder_btn.setEnabled(has_selection)
         self.delete_btn.setEnabled(has_selection)
+
+        # Enable commit button only if content has uncommitted changes
+        commit_enabled = False
+        if has_selection and self.git_manager:
+            content = current_item.data(Qt.ItemDataRole.UserRole)
+            commit_enabled = self._has_uncommitted_changes(content)
+
+        self.commit_btn.setEnabled(commit_enabled)
 
     def _get_selected_content(self) -> Optional[ContentInfo]:
         """Get the currently selected content."""
@@ -438,3 +504,88 @@ class ContentBrowser(QWidget):
     def refresh(self):
         """Public method to refresh the content list."""
         self._refresh_content()
+
+    def _has_uncommitted_changes(self, content: ContentInfo) -> bool:
+        """Check if content has uncommitted changes."""
+        if not self.git_manager:
+            return False
+
+        try:
+            # Determine the path to check based on content type
+            if content.content_type in ["post", "conversation"]:
+                # For posts and conversations, check the entire directory
+                relative_path = content.file_path.parent.relative_to(self.hugo_manager.get_blog_path())
+            else:
+                # For microposts, check just the file
+                relative_path = content.file_path.relative_to(self.hugo_manager.get_blog_path())
+
+            # Check git status for this specific path
+            result = subprocess.run(
+                ["git", "status", "--porcelain", str(relative_path)],
+                cwd=self.hugo_manager.get_blog_path(),
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+
+            # If there's output, there are changes
+            return result.returncode == 0 and bool(result.stdout.strip())
+
+        except Exception:
+            return False
+
+    def _commit_selected_content(self):
+        """Commit and push the selected content item."""
+        content = self._get_selected_content()
+        if not content or not self.git_manager:
+            return
+
+        try:
+            # Import here to avoid circular imports
+            from .commit_dialog import CommitDialog
+
+            # Determine what files to commit based on content type
+            if content.content_type in ["post", "conversation"]:
+                # For posts and conversations, commit the entire directory
+                relative_path = content.file_path.parent.relative_to(self.hugo_manager.get_blog_path())
+            else:
+                # For microposts, commit just the file
+                relative_path = content.file_path.relative_to(self.hugo_manager.get_blog_path())
+
+            # Create commit dialog with pre-filled message
+            content_type_name = content.content_type.title()
+            default_message = f"Update {content_type_name.lower()}: {content.title}"
+
+            dialog = CommitDialog(self, self.git_manager)
+            # Set the default message
+            dialog.message_edit.setPlainText(default_message)
+
+            if dialog.exec():
+                # Get the commit message from dialog
+                commit_message = dialog.get_commit_message()
+
+                # Commit the specific path
+                success, message = self.git_manager.commit_and_push_path(commit_message, str(relative_path))
+
+                if success:
+                    # Refresh content list and emit signal
+                    self._refresh_content()
+                    self.content_updated.emit()
+                    QMessageBox.information(
+                        self,
+                        "Commit Successful",
+                        f"{content_type_name} '{content.title}' has been committed and pushed successfully.",
+                    )
+                else:
+                    QMessageBox.critical(
+                        self,
+                        "Commit Failed",
+                        f"Failed to commit {content.content_type}:\n\n{message}",
+                    )
+
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "Commit Failed",
+                f"Failed to commit {content.content_type}:\n\n{e}",
+            )

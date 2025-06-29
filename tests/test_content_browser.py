@@ -47,6 +47,7 @@ class TestContentBrowser:
                 description="A test post description",
                 tags=["test", "blog"],
                 keywords=["test", "blogging"],
+                is_draft=False,
             ),
             ContentInfo(
                 filename="index.md",
@@ -60,6 +61,7 @@ class TestContentBrowser:
                 description="An expert interview",
                 tags=["interview", "expert"],
                 keywords=["conversation", "expert"],
+                is_draft=True,
             ),
             ContentInfo(
                 filename="2025-06-27-micro.md",
@@ -73,6 +75,7 @@ class TestContentBrowser:
                 description="",
                 tags=[],
                 keywords=[],
+                is_draft=False,
             ),
         ]
 
@@ -286,3 +289,77 @@ class TestContentBrowser:
 
         # Should repopulate the list
         assert browser.content_list.count() == 3
+
+    def test_draft_status_filtering(self, app, mock_hugo_manager, sample_content):
+        """Test filtering content by draft status."""
+        mock_hugo_manager.list_all_content.return_value = sample_content
+
+        browser = ContentBrowser(mock_hugo_manager)
+
+        # Test "All" status filter (default)
+        assert browser.content_list.count() == 3
+
+        # Test "Drafts" filter
+        browser.status_filter_combo.setCurrentText("Drafts")
+        assert browser.content_list.count() == 1
+        item = browser.content_list.item(0)
+        content = item.data(Qt.ItemDataRole.UserRole)
+        assert content.is_draft is True
+        assert content.title == "Expert Interview"
+
+        # Test "Published" filter
+        browser.status_filter_combo.setCurrentText("Published")
+        assert browser.content_list.count() == 2
+
+        # Check that both published items are shown
+        published_titles = []
+        for i in range(browser.content_list.count()):
+            item = browser.content_list.item(i)
+            content = item.data(Qt.ItemDataRole.UserRole)
+            assert content.is_draft is False
+            published_titles.append(content.title)
+
+        assert "Test Blog Post" in published_titles
+        assert "Quick Note" in published_titles
+
+    def test_commit_button_functionality(self, app, mock_hugo_manager, sample_content):
+        """Test commit button is enabled/disabled based on git status."""
+        mock_hugo_manager.list_all_content.return_value = sample_content
+        mock_hugo_manager.get_blog_path.return_value = Path("/fake/blog/path")
+
+        # Mock git manager
+        mock_git_manager = Mock()
+
+        browser = ContentBrowser(mock_hugo_manager)
+        browser.git_manager = mock_git_manager
+
+        # Select first item
+        browser.content_list.setCurrentRow(0)
+
+        # Mock git status to return changes
+        with patch.object(browser, "_has_uncommitted_changes", return_value=True):
+            browser._on_selection_changed()
+            assert browser.commit_btn.isEnabled()
+
+        # Mock git status to return no changes
+        with patch.object(browser, "_has_uncommitted_changes", return_value=False):
+            browser._on_selection_changed()
+            assert not browser.commit_btn.isEnabled()
+
+    def test_has_uncommitted_changes(self, app, mock_hugo_manager, sample_content):
+        """Test checking for uncommitted changes."""
+        mock_hugo_manager.list_all_content.return_value = sample_content
+        mock_hugo_manager.get_blog_path.return_value = Path("/fake/blog/path")
+
+        browser = ContentBrowser(mock_hugo_manager)
+
+        # Test without git manager
+        browser.git_manager = None
+        has_changes = browser._has_uncommitted_changes(sample_content[2])
+        assert has_changes is False
+
+        # Test that method exists and can be called (integration testing will verify actual functionality)
+        browser.git_manager = Mock()
+        # Just test that the method doesn't crash
+        result = browser._has_uncommitted_changes(sample_content[2])
+        assert isinstance(result, bool)

@@ -253,6 +253,64 @@ class GitManager:
         except Exception as e:
             return False, f"Error: {e}"
 
+    def commit_and_push_path(self, message: str, path: str) -> Tuple[bool, str]:
+        """Commit changes for a specific path and push to remote.
+
+        Args:
+            message: Commit message
+            path: Specific file or directory path to commit (relative to repo root)
+
+        Returns:
+            Tuple of (success: bool, message: str)
+        """
+        if not self._is_git_repo():
+            return False, "Not a git repository"
+
+        try:
+            # Add specific path
+            add_result = subprocess.run(
+                ["git", "add", path],
+                cwd=self.blog_path,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            if add_result.returncode != 0:
+                return False, f"Failed to add {path}: {add_result.stderr}"
+
+            # Commit changes
+            commit_result = subprocess.run(
+                ["git", "commit", "-m", message],
+                cwd=self.blog_path,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+
+            if commit_result.returncode != 0:
+                if "nothing to commit" in commit_result.stdout:
+                    return False, f"No changes to commit for {path}"
+                return False, f"Commit failed: {commit_result.stderr}"
+
+            # Push to remote
+            push_result = subprocess.run(
+                ["git", "push"],
+                cwd=self.blog_path,
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+
+            if push_result.returncode != 0:
+                return False, f"Push failed: {push_result.stderr}"
+
+            return True, f"Changes for {path} committed and pushed successfully"
+
+        except subprocess.TimeoutExpired:
+            return False, "Git operation timed out"
+        except Exception as e:
+            return False, f"Error: {e}"
+
     def generate_commit_message(self) -> str:
         """Generate automated commit message using llm tool.
 

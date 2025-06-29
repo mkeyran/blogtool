@@ -34,6 +34,7 @@ class ContentInfo:
     description: str
     tags: List[str]
     keywords: List[str]
+    is_draft: bool
 
 
 class HugoManager:
@@ -328,6 +329,21 @@ class HugoManager:
             except Exception:
                 pass  # Keep original title if parsing fails
 
+            # Extract draft status from micropost front matter
+            is_draft = False
+            try:
+                with open(micropost.file_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                if content.startswith("---"):
+                    parts = content.split("---", 2)
+                    if len(parts) >= 3:
+                        front_matter = parts[1]
+                        draft_match = re.search(r"draft:\s*(true|false)", front_matter)
+                        if draft_match:
+                            is_draft = draft_match.group(1).lower() == "true"
+            except Exception:
+                pass  # Keep default draft status if parsing fails
+
             content_info = ContentInfo(
                 filename=micropost.filename,
                 title=micropost_title,
@@ -340,6 +356,7 @@ class HugoManager:
                 description="",
                 tags=[],
                 keywords=[],
+                is_draft=is_draft,
             )
             all_content.append(content_info)
 
@@ -441,6 +458,12 @@ class HugoManager:
                 if keywords_str:
                     keywords = [kw.strip().strip("'\"") for kw in keywords_str.split(",") if kw.strip()]
 
+            # Extract draft status
+            draft_match = re.search(r"draft:\s*(true|false)", front_matter)
+            is_draft = False
+            if draft_match:
+                is_draft = draft_match.group(1).lower() == "true"
+
             # Generate preview from body
             preview = self._generate_preview(body)
 
@@ -456,6 +479,7 @@ class HugoManager:
                 description=description,
                 tags=tags,
                 keywords=keywords,
+                is_draft=is_draft,
             )
 
         except Exception:

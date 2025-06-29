@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
 class CommitDialog(QDialog):
     """Dialog for creating git commits with message input and templates."""
 
-    def __init__(self, parent=None, git_manager=None):
+    def __init__(self, parent=None, git_manager=None, default_message: str = "", specific_path: str = ""):
         super().__init__(parent)
         self.setWindowTitle("Commit Changes")
         self.setModal(True)
@@ -25,6 +25,8 @@ class CommitDialog(QDialog):
 
         # Store git manager for auto-generation
         self.git_manager = git_manager
+        self.specific_path = specific_path
+        self.default_message = default_message
 
         # Create layout
         layout = QVBoxLayout()
