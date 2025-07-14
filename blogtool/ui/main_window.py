@@ -86,10 +86,11 @@ class MainWindow(QMainWindow):
         file_menu.addSeparator()
 
         # Commit & Push action
-        commit_action = QAction("&Commit && Push", self)
-        commit_action.setShortcut("Ctrl+Shift+C")
-        commit_action.triggered.connect(self._commit_and_push)
-        file_menu.addAction(commit_action)
+        self.commit_action = QAction("&Commit && Push", self)
+        self.commit_action.setShortcut("Ctrl+Shift+C")
+        self.commit_action.triggered.connect(self._commit_and_push)
+        self.commit_action.setEnabled(False)  # Initially disabled
+        file_menu.addAction(self.commit_action)
 
         file_menu.addSeparator()
 
@@ -386,6 +387,7 @@ class MainWindow(QMainWindow):
 
         if not status.is_repo:
             self.git_status_label.setText("Git: Not a repository")
+            self.commit_action.setEnabled(False)
             return
 
         status_parts = []
@@ -408,6 +410,9 @@ class MainWindow(QMainWindow):
             status_parts.append("Clean")
 
         self.git_status_label.setText(f"Git: {' | '.join(status_parts)}")
+        
+        # Enable/disable commit action based on whether there are changes to commit
+        self.commit_action.setEnabled(status.is_repo and total_changes > 0)
 
     def _update_server_status(self):
         """Update Hugo server status display."""
@@ -545,8 +550,8 @@ class MainWindow(QMainWindow):
             if system == "Linux":
                 # Try multiple approaches for Linux due to xdg-open issues
                 linux_commands = [
-                    ["vivaldi", server_url],
                     ["xdg-open", server_url],
+                    ["vivaldi", server_url],
                     ["firefox", server_url],
                     ["chromium", server_url],
                     ["google-chrome", server_url],
@@ -554,7 +559,6 @@ class MainWindow(QMainWindow):
                 ]
 
                 success = False
-                last_error = None
 
                 for cmd in linux_commands:
                     try:
@@ -574,15 +578,13 @@ class MainWindow(QMainWindow):
                             ]
                             try:
                                 if any(indicator in result.stderr for indicator in error_indicators):
-                                    last_error = Exception(f"xdg-open failed: {result.stderr.strip()}")
                                     continue
                             except (TypeError, AttributeError):
                                 pass
 
                         success = True
                         break
-                    except FileNotFoundError as e:
-                        last_error = e
+                    except FileNotFoundError:
                         continue
                     except subprocess.TimeoutExpired:
                         success = True

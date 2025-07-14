@@ -1,7 +1,6 @@
 """Hugo development server management."""
 
 import subprocess
-import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path

@@ -26,9 +26,10 @@ from ..core.settings import get_settings
 class ContentItem(QWidget):
     """Custom widget for displaying content information in the list."""
 
-    def __init__(self, content: ContentInfo):
+    def __init__(self, content: ContentInfo, has_uncommitted_changes: bool = False):
         super().__init__()
         self.content = content
+        self.has_uncommitted_changes = has_uncommitted_changes
         self._setup_ui()
 
     def _setup_ui(self):
@@ -79,6 +80,16 @@ class ContentItem(QWidget):
             )
             published_badge.setMaximumWidth(80)
             title_row.addWidget(published_badge)
+
+        # Uncommitted changes badge
+        if self.has_uncommitted_changes:
+            changes_badge = QLabel("UNCOMMITTED")
+            changes_badge.setStyleSheet(
+                "background-color: #ef4444; color: white; padding: 2px 6px; "
+                "border-radius: 3px; font-size: 9px; font-weight: bold;"
+            )
+            changes_badge.setMaximumWidth(90)
+            title_row.addWidget(changes_badge)
 
         title_row.addStretch()
 
@@ -166,9 +177,9 @@ class ContentBrowser(QWidget):
         header_layout.addWidget(status_label)
 
         self.status_filter_combo = QComboBox()
-        self.status_filter_combo.addItems(["All", "Drafts", "Published"])
+        self.status_filter_combo.addItems(["All", "Drafts", "Published", "Uncommitted"])
         self.status_filter_combo.currentTextChanged.connect(self._apply_filter)
-        self.status_filter_combo.setMaximumWidth(100)
+        self.status_filter_combo.setMaximumWidth(120)
         header_layout.addWidget(self.status_filter_combo)
 
         # Refresh button
@@ -268,6 +279,8 @@ class ContentBrowser(QWidget):
                 status_match = True
             elif status_filter == "published" and not content.is_draft:
                 status_match = True
+            elif status_filter == "uncommitted" and self._has_uncommitted_changes(content):
+                status_match = True
 
             # Include content only if both filters match
             if type_match and status_match:
@@ -275,9 +288,12 @@ class ContentBrowser(QWidget):
 
         # Populate list with filtered content
         for content in filtered_content:
+            # Check if content has uncommitted changes
+            has_uncommitted_changes = self._has_uncommitted_changes(content)
+            
             # Create list item
             item = QListWidgetItem()
-            item.setSizeHint(ContentItem(content).sizeHint())
+            item.setSizeHint(ContentItem(content, has_uncommitted_changes).sizeHint())
 
             # Store content data
             item.setData(Qt.ItemDataRole.UserRole, content)
@@ -286,7 +302,7 @@ class ContentBrowser(QWidget):
             self.content_list.addItem(item)
 
             # Create and set custom widget
-            item_widget = ContentItem(content)
+            item_widget = ContentItem(content, has_uncommitted_changes)
             self.content_list.setItemWidget(item, item_widget)
 
     def _on_selection_changed(self):
