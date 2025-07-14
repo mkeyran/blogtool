@@ -194,9 +194,7 @@ class MainWindow(QMainWindow):
             micropost_data = dialog.get_micropost_data()
 
             # Create the micropost
-            success, message = self.hugo_manager.create_micropost(
-                micropost_data["filename"], micropost_data["content"]
-            )
+            success, message = self.hugo_manager.create_micropost(micropost_data["filename"], micropost_data["content"])
 
             if success:
                 QMessageBox.information(
@@ -262,16 +260,13 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(
                 self,
                 "Not a Git Repository",
-                "The blog directory is not a git repository.\n\n"
-                "Please initialize git in your blog directory first.",
+                "The blog directory is not a git repository.\n\n" "Please initialize git in your blog directory first.",
             )
             return
 
         # Get current git status to show in dialog
         status = self.git_manager.get_status()
-        total_changes = (
-            status.modified_files + status.staged_files + status.untracked_files
-        )
+        total_changes = status.modified_files + status.staged_files + status.untracked_files
 
         if total_changes == 0:
             QMessageBox.information(
@@ -298,11 +293,39 @@ class MainWindow(QMainWindow):
                 # Refresh git status after successful commit
                 self._update_git_status()
             else:
-                QMessageBox.critical(
-                    self,
-                    "Commit Failed",
-                    f"Failed to commit and push changes:\n\n{message}",
-                )
+                # Check if this is an authentication error and offer commit-only option
+                if "authentication" in message.lower() or "permission denied" in message.lower():
+                    reply = QMessageBox.question(
+                        self,
+                        "Push Failed - Commit Only?",
+                        f"{message}\n\nWould you like to commit the changes locally without pushing?\n\n"
+                        "You can push later when authentication is resolved.",
+                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                        QMessageBox.StandardButton.Yes,
+                    )
+
+                    if reply == QMessageBox.StandardButton.Yes:
+                        commit_success, commit_message = self.git_manager.commit_only(commit_message)
+                        if commit_success:
+                            QMessageBox.information(
+                                self,
+                                "Commit Successful",
+                                f"Changes committed locally!\n\n{commit_message}",
+                            )
+                            # Refresh git status after successful commit
+                            self._update_git_status()
+                        else:
+                            QMessageBox.critical(
+                                self,
+                                "Commit Failed",
+                                f"Failed to commit changes:\n\n{commit_message}",
+                            )
+                else:
+                    QMessageBox.critical(
+                        self,
+                        "Commit Failed",
+                        f"Failed to commit and push changes:\n\n{message}",
+                    )
 
     def _show_settings(self):
         """Show the Settings dialog."""
@@ -372,9 +395,7 @@ class MainWindow(QMainWindow):
             status_parts.append(f"Branch: {status.current_branch}")
 
         # Show file counts
-        total_changes = (
-            status.modified_files + status.staged_files + status.untracked_files
-        )
+        total_changes = status.modified_files + status.staged_files + status.untracked_files
         if total_changes > 0:
             status_parts.append(f"Changes: {total_changes}")
 
@@ -492,8 +513,7 @@ class MainWindow(QMainWindow):
             reply = QMessageBox.question(
                 self,
                 "Server Not Running",
-                "Hugo server is not currently running.\n\n"
-                "Would you like to start the server first?",
+                "Hugo server is not currently running.\n\n" "Would you like to start the server first?",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 QMessageBox.StandardButton.Yes,
             )
@@ -546,24 +566,15 @@ class MainWindow(QMainWindow):
                         )
 
                         # Special handling for xdg-open KDE compatibility issues
-                        if (
-                            cmd[0] == "xdg-open"
-                            and hasattr(result, "stderr")
-                            and result.stderr
-                        ):
+                        if cmd[0] == "xdg-open" and hasattr(result, "stderr") and result.stderr:
                             error_indicators = [
                                 "kfmclient: command not found",
                                 "integer expression expected",
                                 "No such file or directory",
                             ]
                             try:
-                                if any(
-                                    indicator in result.stderr
-                                    for indicator in error_indicators
-                                ):
-                                    last_error = Exception(
-                                        f"xdg-open failed: {result.stderr.strip()}"
-                                    )
+                                if any(indicator in result.stderr for indicator in error_indicators):
+                                    last_error = Exception(f"xdg-open failed: {result.stderr.strip()}")
                                     continue
                             except (TypeError, AttributeError):
                                 pass
@@ -588,8 +599,7 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(
                 self,
                 "Browser Launch Failed",
-                f"Failed to open browser:\n\n{e}\n\n"
-                f"Please manually navigate to: {server_url}",
+                f"Failed to open browser:\n\n{e}\n\n" f"Please manually navigate to: {server_url}",
             )
 
     def closeEvent(self, event):

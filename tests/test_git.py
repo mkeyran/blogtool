@@ -268,3 +268,64 @@ def test_git_status_dataclass():
     assert status.untracked_files == 3
     assert status.has_unpushed_commits
     assert status.current_branch == "main"
+
+
+class TestGitManagerNewFeatures:
+    """Test cases for new GitManager features."""
+
+    @patch("subprocess.run")
+    def test_commit_and_push_authentication_error(self, mock_run):
+        """Test commit and push with authentication error provides helpful message."""
+        # Setup mock responses
+        mock_responses = [
+            Mock(returncode=0),  # git rev-parse (is_git_repo check)
+            Mock(returncode=0, stdout="", stderr=""),  # git add
+            Mock(returncode=0, stdout="", stderr=""),  # git commit
+            Mock(
+                returncode=1,
+                stderr="ERROR: permission denied to user/repo.git denied to user.\nfatal: Could not read from remote repository.",
+            ),  # git push
+        ]
+        mock_run.side_effect = mock_responses
+
+        manager = GitManager()
+        success, message = manager.commit_and_push("Test commit")
+
+        assert not success
+        assert "authentication issues" in message
+        assert "Changes have been committed locally" in message
+        assert "check your Git credentials" in message
+
+    @patch("subprocess.run")
+    def test_commit_only_success(self, mock_run):
+        """Test commit only (without push) functionality."""
+        # Setup mock responses
+        mock_responses = [
+            Mock(returncode=0),  # git rev-parse (is_git_repo check)
+            Mock(returncode=0, stdout="", stderr=""),  # git add
+            Mock(returncode=0, stdout="", stderr=""),  # git commit
+        ]
+        mock_run.side_effect = mock_responses
+
+        manager = GitManager()
+        success, message = manager.commit_only("Test commit")
+
+        assert success
+        assert "Changes committed locally (not pushed to remote)" in message
+
+    @patch("subprocess.run")
+    def test_commit_only_no_changes(self, mock_run):
+        """Test commit only when there are no changes."""
+        # Setup mock responses
+        mock_responses = [
+            Mock(returncode=0),  # git rev-parse (is_git_repo check)
+            Mock(returncode=0, stdout="", stderr=""),  # git add
+            Mock(returncode=1, stdout="nothing to commit", stderr=""),  # git commit
+        ]
+        mock_run.side_effect = mock_responses
+
+        manager = GitManager()
+        success, message = manager.commit_only("Test commit")
+
+        assert not success
+        assert "No changes to commit" in message

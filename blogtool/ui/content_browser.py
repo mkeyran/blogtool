@@ -7,6 +7,7 @@ from typing import Optional
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QComboBox,
+    QDialog,
     QHBoxLayout,
     QLabel,
     QListWidget,
@@ -129,7 +130,7 @@ class ContentBrowser(QWidget):
 
         # Initialize GitManager for commit/push functionality
         blog_path = self.hugo_manager.get_blog_path()
-        self.git_manager = GitManager(str(blog_path)) if blog_path else None
+        self.git_manager = GitManager(blog_path) if blog_path else None
 
         self._setup_ui()
         self._refresh_content()
@@ -534,6 +535,52 @@ class ContentBrowser(QWidget):
         except Exception:
             return False
 
+    def _commit_only_path(self, message: str, path: str) -> tuple[bool, str]:
+        """Commit changes for a specific path without pushing.
+        
+        Args:
+            message: Commit message
+            path: Specific file or directory path to commit (relative to repo root)
+            
+        Returns:
+            Tuple of (success: bool, message: str)
+        """
+        if not self.git_manager:
+            return False, "Git manager not available"
+            
+        try:
+            # Add specific path
+            add_result = subprocess.run(
+                ["git", "add", path],
+                cwd=self.hugo_manager.get_blog_path(),
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            if add_result.returncode != 0:
+                return False, f"Failed to add {path}: {add_result.stderr}"
+
+            # Commit changes
+            commit_result = subprocess.run(
+                ["git", "commit", "-m", message],
+                cwd=self.hugo_manager.get_blog_path(),
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+
+            if commit_result.returncode != 0:
+                if "nothing to commit" in commit_result.stdout:
+                    return False, f"No changes to commit for {path}"
+                return False, f"Commit failed: {commit_result.stderr}"
+
+            return True, f"Changes for {path} committed locally (not pushed to remote)"
+
+        except subprocess.TimeoutExpired:
+            return False, "Git operation timed out"
+        except Exception as e:
+            return False, f"Error: {e}"
+
     def _commit_selected_content(self):
         """Commit and push the selected content item."""
         content = self._get_selected_content()
@@ -560,7 +607,7 @@ class ContentBrowser(QWidget):
             # Set the default message
             dialog.message_edit.setPlainText(default_message)
 
-            if dialog.exec():
+            if dialog.exec() == QDialog.Accepted:
                 # Get the commit message from dialog
                 commit_message = dialog.get_commit_message()
 
@@ -577,11 +624,41 @@ class ContentBrowser(QWidget):
                         f"{content_type_name} '{content.title}' has been committed and pushed successfully.",
                     )
                 else:
-                    QMessageBox.critical(
-                        self,
-                        "Commit Failed",
-                        f"Failed to commit {content.content_type}:\n\n{message}",
-                    )
+                    # Check if this is an authentication error and offer commit-only option
+                    if "authentication" in message.lower() or "permission denied" in message.lower():
+                        reply = QMessageBox.question(
+                            self,
+                            "Push Failed - Commit Only?",
+                            f"{message}\n\nWould you like to commit the changes locally without pushing?\n\n"
+                            "You can push later when authentication is resolved.",
+                            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                            QMessageBox.StandardButton.Yes,
+                        )
+                        
+                        if reply == QMessageBox.StandardButton.Yes:
+                            # Use commit_only method for just this path
+                            commit_success, commit_msg = self._commit_only_path(commit_message, str(relative_path))
+                            if commit_success:
+                                # Refresh content list and emit signal
+                                self._refresh_content()
+                                self.content_updated.emit()
+                                QMessageBox.information(
+                                    self,
+                                    "Commit Successful",
+                                    f"{content_type_name} '{content.title}' has been committed locally.",
+                                )
+                            else:
+                                QMessageBox.critical(
+                                    self,
+                                    "Commit Failed",
+                                    f"Failed to commit {content.content_type}:\n\n{commit_msg}",
+                                )
+                    else:
+                        QMessageBox.critical(
+                            self,
+                            "Commit Failed",
+                            f"Failed to commit {content.content_type}:\n\n{message}",
+                        )
 
         except Exception as e:
             QMessageBox.critical(

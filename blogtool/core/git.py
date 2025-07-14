@@ -244,9 +244,68 @@ class GitManager:
             )
 
             if push_result.returncode != 0:
+                # Check for authentication errors
+                stderr = push_result.stderr.lower()
+                if "permission denied" in stderr or "authentication failed" in stderr:
+                    return False, (
+                        "Push failed due to authentication issues.\n\n"
+                        "Changes have been committed locally but not pushed to remote.\n\n"
+                        "Please check your Git credentials and try:\n"
+                        "• Ensure you're logged into the correct GitHub account\n"
+                        "• Verify SSH keys are properly configured\n"
+                        "• Check if you have push access to this repository\n\n"
+                        f"Original error: {push_result.stderr}"
+                    )
                 return False, f"Push failed: {push_result.stderr}"
 
             return True, "Changes committed and pushed successfully"
+
+        except subprocess.TimeoutExpired:
+            return False, "Git operation timed out"
+        except Exception as e:
+            return False, f"Error: {e}"
+
+    def commit_only(self, message: str, add_all: bool = True) -> Tuple[bool, str]:
+        """Commit changes without pushing to remote.
+
+        Args:
+            message: Commit message
+            add_all: Whether to add all changes before committing
+
+        Returns:
+            Tuple of (success: bool, message: str)
+        """
+        if not self._is_git_repo():
+            return False, "Not a git repository"
+
+        try:
+            # Add all changes if requested
+            if add_all:
+                add_result = subprocess.run(
+                    ["git", "add", "."],
+                    cwd=self.blog_path,
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                )
+                if add_result.returncode != 0:
+                    return False, f"Failed to add files: {add_result.stderr}"
+
+            # Commit changes
+            commit_result = subprocess.run(
+                ["git", "commit", "-m", message],
+                cwd=self.blog_path,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+
+            if commit_result.returncode != 0:
+                if "nothing to commit" in commit_result.stdout:
+                    return False, "No changes to commit"
+                return False, f"Commit failed: {commit_result.stderr}"
+
+            return True, "Changes committed locally (not pushed to remote)"
 
         except subprocess.TimeoutExpired:
             return False, "Git operation timed out"
@@ -302,6 +361,18 @@ class GitManager:
             )
 
             if push_result.returncode != 0:
+                # Check for authentication errors
+                stderr = push_result.stderr.lower()
+                if "permission denied" in stderr or "authentication failed" in stderr:
+                    return False, (
+                        "Push failed due to authentication issues.\n\n"
+                        "Changes have been committed locally but not pushed to remote.\n\n"
+                        "Please check your Git credentials and try:\n"
+                        "• Ensure you're logged into the correct GitHub account\n"
+                        "• Verify SSH keys are properly configured\n"
+                        "• Check if you have push access to this repository\n\n"
+                        f"Original error: {push_result.stderr}"
+                    )
                 return False, f"Push failed: {push_result.stderr}"
 
             return True, f"Changes for {path} committed and pushed successfully"
