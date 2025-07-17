@@ -55,6 +55,56 @@ class HugoManager:
             settings = get_settings()
             configured_path = settings.get_blog_path()
             self.blog_path = Path(configured_path) if configured_path else None
+        
+        # Get Hugo executable from settings
+        from .settings import get_settings
+        settings = get_settings()
+        self.hugo_cmd = settings.get_hugo_executable()
+        
+        # Set up environment with proper PATH
+        self.env = self._setup_environment(settings)
+
+    def _setup_environment(self, settings) -> dict:
+        """Set up environment variables with proper PATH for Hugo and Go."""
+        import os
+        
+        # Start with current environment
+        env = os.environ.copy()
+        
+        # Get configured paths
+        go_path = settings.get_go_executable()
+        hugo_path = settings.get_hugo_executable()
+        
+        # Build PATH components
+        path_components = []
+        
+        # Add Go binary directory to PATH if we have it
+        if go_path and go_path != "go":  # If not just "go" (meaning it's a full path)
+            go_dir = str(Path(go_path).parent)
+            path_components.append(go_dir)
+        
+        # Add Hugo binary directory to PATH if we have it
+        if hugo_path and hugo_path != "hugo":  # If not just "hugo" (meaning it's a full path)
+            hugo_dir = str(Path(hugo_path).parent)
+            path_components.append(hugo_dir)
+        
+        # Add common binary directories
+        common_dirs = [
+            "/opt/homebrew/bin",
+            "/usr/local/bin",
+            "/usr/local/go/bin",
+            "/usr/bin",
+        ]
+        path_components.extend(common_dirs)
+        
+        # Add original PATH
+        if "PATH" in env:
+            path_components.append(env["PATH"])
+        
+        # Set the new PATH
+        env["PATH"] = ":".join(path_components)
+        
+        return env
 
     def _is_hugo_site(self, path: Path) -> bool:
         """Check if path contains a Hugo site."""
@@ -90,29 +140,39 @@ class HugoManager:
         """
         if not self.blog_path:
             return False, "Hugo blog not found. Please check blog path."
+        
+        if not self.hugo_cmd:
+            return False, "Hugo executable not found. Please ensure Hugo is installed and accessible."
 
         try:
             # Create micropost using Hugo CLI with explicit content path
             micropost_path = f"content/microposts/{filename}"
 
             # Run hugo new content command
+            cmd = [
+                self.hugo_cmd,
+                "new",
+                "content",
+                micropost_path,
+                "--kind",
+                "micropost",
+            ]
+            
             result = subprocess.run(
-                [
-                    "hugo",
-                    "new",
-                    "content",
-                    micropost_path,
-                    "--kind",
-                    "micropost",
-                ],
+                cmd,
                 cwd=self.blog_path,
                 capture_output=True,
                 text=True,
                 timeout=30,
+                env=self.env,
             )
 
             if result.returncode != 0:
-                return False, f"Hugo command failed: {result.stderr}"
+                error_msg = result.stderr.strip() if result.stderr else result.stdout.strip()
+                if not error_msg:
+                    error_msg = f"Hugo command returned code {result.returncode} with no output"
+                debug_info = f"Command: {' '.join(cmd)}\nWorking directory: {self.blog_path}\nReturn code: {result.returncode}"
+                return False, f"Hugo command failed: {error_msg}\n\nDebug info:\n{debug_info}"
 
             # Path to the created file
             created_file = self.blog_path / "content" / "microposts" / filename
@@ -509,6 +569,9 @@ class HugoManager:
         """
         if not self.blog_path:
             return False, "Hugo blog not found. Please check blog path."
+        
+        if not self.hugo_cmd:
+            return False, "Hugo executable not found. Please ensure Hugo is installed and accessible."
 
         try:
             # Map language codes to content directories
@@ -520,7 +583,7 @@ class HugoManager:
             # Run hugo new content command
             result = subprocess.run(
                 [
-                    "hugo",
+                    self.hugo_cmd,
                     "new",
                     "content",
                     post_path,
@@ -529,10 +592,14 @@ class HugoManager:
                 capture_output=True,
                 text=True,
                 timeout=30,
+                env=self.env,
             )
 
             if result.returncode != 0:
-                return False, f"Hugo command failed: {result.stderr}"
+                error_msg = result.stderr.strip() if result.stderr else result.stdout.strip()
+                if not error_msg:
+                    error_msg = f"Hugo command returned code {result.returncode} with no output"
+                return False, f"Hugo command failed: {error_msg}"
 
             # Path to the created file
             created_file = self.blog_path / "content" / language_dir / "posts" / slug / "index.md"
@@ -576,6 +643,9 @@ class HugoManager:
         """
         if not self.blog_path:
             return False, "Hugo blog not found. Please check blog path."
+        
+        if not self.hugo_cmd:
+            return False, "Hugo executable not found. Please ensure Hugo is installed and accessible."
 
         try:
             # Map language codes to content directories
@@ -587,7 +657,7 @@ class HugoManager:
             # Run hugo new content command with conversations archetype
             result = subprocess.run(
                 [
-                    "hugo",
+                    self.hugo_cmd,
                     "new",
                     "content",
                     conversation_path,
@@ -598,10 +668,14 @@ class HugoManager:
                 capture_output=True,
                 text=True,
                 timeout=30,
+                env=self.env,
             )
 
             if result.returncode != 0:
-                return False, f"Hugo command failed: {result.stderr}"
+                error_msg = result.stderr.strip() if result.stderr else result.stdout.strip()
+                if not error_msg:
+                    error_msg = f"Hugo command returned code {result.returncode} with no output"
+                return False, f"Hugo command failed: {error_msg}"
 
             # Path to the created file
             created_file = self.blog_path / "content" / language_dir / "conversations" / slug / "index.md"

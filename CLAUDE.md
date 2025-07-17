@@ -79,6 +79,39 @@ uv run flake8                   # Check code style
 uv run python -m blogtool       # Run the application
 ```
 
+### macOS App Building
+```bash
+./build_pyinstaller.py         # Build macOS app bundle using PyInstaller (recommended)
+./build_macos.py               # Build macOS app bundle using py2app (legacy)
+make -f Makefile.macos all     # Build using Makefile (full build with DMG)
+make -f Makefile.macos quick   # Quick build (no DMG)
+make -f Makefile.macos install # Install to /Applications/
+
+# Direct PyInstaller usage:
+uv run pyinstaller --windowed --onefile --name=BlogTool --icon=resources/icon.icns --paths=. --hidden-import=blogtool --hidden-import=blogtool.core --hidden-import=blogtool.ui --hidden-import=blogtool.utils --osx-bundle-identifier=com.keyran.blogtool main.py
+```
+
+### App Configuration
+The macOS app includes a comprehensive settings system accessible via File → Settings or Cmd+,:
+
+**Hugo Settings:**
+- Auto-detection of Hugo executable in common locations
+- Manual path configuration with file browser
+- Test button to verify Hugo functionality
+- Essential for content creation features
+
+**Go Settings:**
+- Auto-detection of Go executable (required by Hugo)
+- Manual path configuration with file browser  
+- Test button to verify Go functionality
+- Automatically added to PATH when running Hugo commands
+
+**Other Settings:**
+- Editor command configuration
+- Blog path configuration
+- Git integration settings
+- UI preferences
+
 ## Project Structure Guidelines
 
 - Keep Qt UI components modular and testable
@@ -174,4 +207,13 @@ Each phase delivers working software that provides immediate value. The order pr
 - Comprehensive test coverage with 43 new tests covering server functionality and UI integration
 - Full error handling with user-friendly messages for Hugo command not found, port conflicts, etc.
 
-**Next Priority**: Phase 6 (Publishing Pipeline) to add draft ↔ published workflow management.
+**Phase 6 Status**: macOS App Distribution - Complete macOS app packaging with PyInstaller:
+- Custom SVG icon converted to native .icns format for proper macOS integration
+- PyInstaller-based build system creating native .app bundles without Python installation requirements
+- Comprehensive settings system with Hugo and Go executable path configuration
+- Enhanced error reporting with detailed debugging information for Hugo command failures
+- Cross-platform PATH environment setup ensuring Hugo can find Go and other dependencies
+- Build automation with both Python scripts and Makefile options
+- Full documentation for building, configuring, and distributing the macOS application
+
+**Next Priority**: Phase 7 (Publishing Pipeline) to add draft ↔ published workflow management.

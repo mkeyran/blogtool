@@ -52,6 +52,14 @@ class Settings:
                 "path": "",  # Empty means use auto-detection (playground or sibling directory)
                 "auto_detect": True,
             },
+            "hugo": {
+                "executable_path": "",  # Empty means use auto-detection
+                "auto_detect": True,
+            },
+            "go": {
+                "executable_path": "",  # Empty means use auto-detection
+                "auto_detect": True,
+            },
             "git": {
                 "auto_generate_messages": True,
                 "default_templates": [
@@ -199,6 +207,107 @@ class Settings:
         """Enable blog path auto-detection and clear manual path."""
         self.set("blog.path", "")
         self.set("blog.auto_detect", True)
+
+    def get_hugo_executable(self) -> Optional[str]:
+        """Get the configured Hugo executable path, with auto-detection fallback."""
+        configured_hugo = self.get("hugo.executable_path", "").strip()
+        auto_detect = self.get("hugo.auto_detect", True)
+
+        if configured_hugo and Path(configured_hugo).exists():
+            return configured_hugo
+
+        if auto_detect:
+            return self._detect_hugo_executable()
+
+        return None
+
+    def set_hugo_executable(self, hugo_path: str) -> None:
+        """Set the Hugo executable path and disable auto-detection."""
+        self.set("hugo.executable_path", hugo_path)
+        self.set("hugo.auto_detect", False)
+
+    def enable_hugo_auto_detection(self) -> None:
+        """Enable Hugo executable auto-detection and clear manual path."""
+        self.set("hugo.executable_path", "")
+        self.set("hugo.auto_detect", True)
+
+    def _detect_hugo_executable(self) -> Optional[str]:
+        """Detect Hugo executable in common locations."""
+        import subprocess
+        
+        # Common locations where Hugo might be installed
+        common_paths = [
+            "hugo",  # Try PATH first
+            "/usr/local/bin/hugo",
+            "/opt/homebrew/bin/hugo",
+            "/usr/bin/hugo",
+        ]
+        
+        for hugo_path in common_paths:
+            try:
+                result = subprocess.run(
+                    [hugo_path, "version"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                )
+                if result.returncode == 0:
+                    return hugo_path
+            except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError):
+                continue
+        
+        return None
+
+    def get_go_executable(self) -> Optional[str]:
+        """Get the configured Go executable path, with auto-detection fallback."""
+        configured_go = self.get("go.executable_path", "").strip()
+        auto_detect = self.get("go.auto_detect", True)
+
+        if configured_go and Path(configured_go).exists():
+            return configured_go
+
+        if auto_detect:
+            return self._detect_go_executable()
+
+        return None
+
+    def set_go_executable(self, go_path: str) -> None:
+        """Set the Go executable path and disable auto-detection."""
+        self.set("go.executable_path", go_path)
+        self.set("go.auto_detect", False)
+
+    def enable_go_auto_detection(self) -> None:
+        """Enable Go executable auto-detection and clear manual path."""
+        self.set("go.executable_path", "")
+        self.set("go.auto_detect", True)
+
+    def _detect_go_executable(self) -> Optional[str]:
+        """Detect Go executable in common locations."""
+        import subprocess
+        
+        # Common locations where Go might be installed
+        common_paths = [
+            "go",  # Try PATH first
+            "/usr/local/go/bin/go",
+            "/opt/homebrew/bin/go",
+            "/usr/bin/go",
+            "/usr/local/bin/go",
+        ]
+        
+        for go_path in common_paths:
+            try:
+                result = subprocess.run(
+                    [go_path, "version"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                )
+                if result.returncode == 0:
+                    return go_path
+            except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError):
+                continue
+        
+        return None
 
     def _is_hugo_site(self, path: Path) -> bool:
         """Check if path contains a Hugo site."""

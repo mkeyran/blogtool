@@ -1,0 +1,82 @@
+# Makefile for building BlogTool macOS app
+
+.PHONY: clean install-deps build-app test-app dmg all help
+
+# Default target
+all: clean install-deps build-app test-app dmg
+
+# Clean build artifacts
+clean:
+	@echo "Cleaning build artifacts..."
+	rm -rf build dist *.egg-info
+	rm -f BlogTool-*.dmg
+
+# Install build dependencies
+install-deps:
+	@echo "Installing build dependencies..."
+	uv sync --extra build
+
+# Build the macOS app bundle
+build-app:
+	@echo "Building macOS app bundle..."
+	uv run python setup.py py2app
+
+# Test the built app
+test-app:
+	@echo "Testing app bundle..."
+	@if [ -d "dist/BlogTool.app" ]; then \
+		echo "✓ App bundle created successfully"; \
+		open -a dist/BlogTool.app --args --version || echo "⚠ App may have issues"; \
+	else \
+		echo "✗ App bundle not found"; \
+		exit 1; \
+	fi
+
+# Create DMG file
+dmg:
+	@echo "Creating DMG file..."
+	@if [ -d "dist/BlogTool.app" ]; then \
+		rm -f BlogTool-*.dmg; \
+		hdiutil create -volname "BlogTool" -srcfolder dist/BlogTool.app -ov -format UDZO BlogTool-0.1.0.dmg; \
+		echo "✓ DMG created: BlogTool-0.1.0.dmg"; \
+	else \
+		echo "✗ App bundle not found, cannot create DMG"; \
+		exit 1; \
+	fi
+
+# Quick build (no DMG)
+quick:
+	@echo "Quick build (no DMG)..."
+	$(MAKE) clean install-deps build-app test-app
+
+# Install to Applications folder
+install:
+	@echo "Installing to Applications folder..."
+	@if [ -d "dist/BlogTool.app" ]; then \
+		cp -r dist/BlogTool.app /Applications/; \
+		echo "✓ BlogTool installed to /Applications/"; \
+	else \
+		echo "✗ App bundle not found. Run 'make build-app' first."; \
+		exit 1; \
+	fi
+
+# Show help
+help:
+	@echo "BlogTool macOS Build System"
+	@echo "=========================="
+	@echo ""
+	@echo "Available targets:"
+	@echo "  all        - Full build: clean, install deps, build app, test, create DMG"
+	@echo "  clean      - Remove build artifacts"
+	@echo "  install-deps - Install build dependencies"
+	@echo "  build-app  - Build the macOS app bundle"
+	@echo "  test-app   - Test the built app"
+	@echo "  dmg        - Create DMG file"
+	@echo "  quick      - Quick build (no DMG)"
+	@echo "  install    - Install app to /Applications/"
+	@echo "  help       - Show this help message"
+	@echo ""
+	@echo "Usage examples:"
+	@echo "  make all       # Full build"
+	@echo "  make quick     # Quick build for testing"
+	@echo "  make install   # Install to Applications"

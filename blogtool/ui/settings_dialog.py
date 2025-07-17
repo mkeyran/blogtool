@@ -109,6 +109,80 @@ class SettingsDialog(QDialog):
 
         layout.addWidget(blog_group)
 
+        # Hugo settings group
+        hugo_group = QGroupBox("Hugo Settings")
+        hugo_layout = QFormLayout()
+        hugo_group.setLayout(hugo_layout)
+
+        # Hugo executable path input
+        hugo_path_row = QHBoxLayout()
+        self.hugo_path_input = QLineEdit()
+        self.hugo_path_input.setPlaceholderText("Leave empty for auto-detection")
+        hugo_path_row.addWidget(self.hugo_path_input)
+
+        # Browse button for Hugo executable
+        self.browse_hugo_btn = QPushButton("Browse")
+        self.browse_hugo_btn.clicked.connect(self._browse_hugo_path)
+        self.browse_hugo_btn.setMaximumWidth(80)
+        hugo_path_row.addWidget(self.browse_hugo_btn)
+
+        # Test Hugo button
+        self.test_hugo_btn = QPushButton("Test")
+        self.test_hugo_btn.clicked.connect(self._test_hugo)
+        self.test_hugo_btn.setMaximumWidth(60)
+        hugo_path_row.addWidget(self.test_hugo_btn)
+
+        hugo_layout.addRow("Hugo Executable:", hugo_path_row)
+
+        # Auto-detect Hugo checkbox
+        self.auto_detect_hugo_cb = QCheckBox("Auto-detect Hugo executable")
+        self.auto_detect_hugo_cb.stateChanged.connect(self._on_auto_detect_hugo_changed)
+        hugo_layout.addRow(self.auto_detect_hugo_cb)
+
+        # Hugo status label
+        self.hugo_status = QLabel()
+        self.hugo_status.setStyleSheet("color: #666; font-size: 10px;")
+        hugo_layout.addRow("Status:", self.hugo_status)
+
+        layout.addWidget(hugo_group)
+
+        # Go settings group
+        go_group = QGroupBox("Go Settings")
+        go_layout = QFormLayout()
+        go_group.setLayout(go_layout)
+
+        # Go executable path input
+        go_path_row = QHBoxLayout()
+        self.go_path_input = QLineEdit()
+        self.go_path_input.setPlaceholderText("Leave empty for auto-detection")
+        go_path_row.addWidget(self.go_path_input)
+
+        # Browse button for Go executable
+        self.browse_go_btn = QPushButton("Browse")
+        self.browse_go_btn.clicked.connect(self._browse_go_path)
+        self.browse_go_btn.setMaximumWidth(80)
+        go_path_row.addWidget(self.browse_go_btn)
+
+        # Test Go button
+        self.test_go_btn = QPushButton("Test")
+        self.test_go_btn.clicked.connect(self._test_go)
+        self.test_go_btn.setMaximumWidth(60)
+        go_path_row.addWidget(self.test_go_btn)
+
+        go_layout.addRow("Go Executable:", go_path_row)
+
+        # Auto-detect Go checkbox
+        self.auto_detect_go_cb = QCheckBox("Auto-detect Go executable")
+        self.auto_detect_go_cb.stateChanged.connect(self._on_auto_detect_go_changed)
+        go_layout.addRow(self.auto_detect_go_cb)
+
+        # Go status label
+        self.go_status = QLabel()
+        self.go_status.setStyleSheet("color: #666; font-size: 10px;")
+        go_layout.addRow("Status:", self.go_status)
+
+        layout.addWidget(go_group)
+
         # Git settings group
         git_group = QGroupBox("Git Settings")
         git_layout = QFormLayout()
@@ -152,6 +226,8 @@ class SettingsDialog(QDialog):
         # Update editor status initially
         self._update_editor_status()
         self._update_blog_status()
+        self._update_hugo_status()
+        self._update_go_status()
 
     def _load_current_settings(self):
         """Load current settings into the dialog."""
@@ -170,6 +246,20 @@ class SettingsDialog(QDialog):
 
         auto_detect_blog = self.settings.get("blog.auto_detect", True)
         self.auto_detect_blog_cb.setChecked(auto_detect_blog)
+
+        # Hugo settings
+        hugo_path = self.settings.get("hugo.executable_path", "")
+        self.hugo_path_input.setText(hugo_path)
+
+        auto_detect_hugo = self.settings.get("hugo.auto_detect", True)
+        self.auto_detect_hugo_cb.setChecked(auto_detect_hugo)
+
+        # Go settings
+        go_path = self.settings.get("go.executable_path", "")
+        self.go_path_input.setText(go_path)
+
+        auto_detect_go = self.settings.get("go.auto_detect", True)
+        self.auto_detect_go_cb.setChecked(auto_detect_go)
 
         # Git settings
         auto_generate = self.settings.get("git.auto_generate_messages", True)
@@ -310,6 +400,268 @@ class SettingsDialog(QDialog):
                 self.blog_status.setText("No path specified")
                 self.blog_status.setStyleSheet("color: orange; font-size: 10px;")
 
+    def _browse_hugo_path(self):
+        """Browse for Hugo executable."""
+        current_path = self.hugo_path_input.text().strip() or "/usr/local/bin"
+
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "Select Hugo Executable", current_path, "Executable Files (*)"
+        )
+
+        if file_path:
+            # Test if it's actually Hugo
+            try:
+                import subprocess
+                result = subprocess.run(
+                    [file_path, "version"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                )
+                if result.returncode == 0 and "hugo" in result.stdout.lower():
+                    self.hugo_path_input.setText(file_path)
+                    self.auto_detect_hugo_cb.setChecked(False)
+                    self._update_hugo_status()
+                else:
+                    QMessageBox.warning(
+                        self,
+                        "Invalid Hugo Executable",
+                        f"The selected file does not appear to be a Hugo executable.\n\n"
+                        f"Expected Hugo version output but got:\n{result.stdout[:200]}...",
+                    )
+            except Exception as e:
+                QMessageBox.warning(
+                    self,
+                    "Hugo Test Failed",
+                    f"Failed to test Hugo executable:\n\n{e}",
+                )
+
+    def _test_hugo(self):
+        """Test the current Hugo executable."""
+        hugo_path = self.hugo_path_input.text().strip()
+
+        if not hugo_path:
+            # Test auto-detected Hugo
+            detected_hugo = self.settings._detect_hugo_executable()
+            if detected_hugo:
+                try:
+                    result = subprocess.run(
+                        [detected_hugo, "version"],
+                        capture_output=True,
+                        text=True,
+                        timeout=5,
+                    )
+                    QMessageBox.information(
+                        self,
+                        "Hugo Test",
+                        f"Auto-detected Hugo: {detected_hugo}\n\nVersion output:\n{result.stdout}",
+                    )
+                except Exception as e:
+                    QMessageBox.warning(
+                        self,
+                        "Hugo Test",
+                        f"Hugo found but test failed:\n\n{e}",
+                    )
+            else:
+                QMessageBox.warning(
+                    self,
+                    "Hugo Test",
+                    "No Hugo executable could be auto-detected.\n\nPlease specify the Hugo path manually.",
+                )
+            return
+
+        # Test specified Hugo
+        try:
+            result = subprocess.run(
+                [hugo_path, "version"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if result.returncode == 0:
+                QMessageBox.information(
+                    self,
+                    "Hugo Test",
+                    f"Hugo executable is working!\n\nVersion output:\n{result.stdout}",
+                )
+            else:
+                QMessageBox.warning(
+                    self,
+                    "Hugo Test",
+                    f"Hugo executable failed:\n\nReturn code: {result.returncode}\nOutput: {result.stderr}",
+                )
+        except FileNotFoundError:
+            QMessageBox.warning(
+                self,
+                "Hugo Test",
+                f"Hugo executable not found at:\n{hugo_path}\n\nPlease check the path and try again.",
+            )
+        except Exception as e:
+            QMessageBox.critical(self, "Hugo Test", f"Error testing Hugo executable:\n\n{e}")
+
+    def _on_auto_detect_hugo_changed(self):
+        """Handle auto-detect Hugo checkbox change."""
+        if self.auto_detect_hugo_cb.isChecked():
+            self.hugo_path_input.setText("")
+        self._update_hugo_status()
+
+    def _update_hugo_status(self):
+        """Update the Hugo status label."""
+        if self.auto_detect_hugo_cb.isChecked() or not self.hugo_path_input.text().strip():
+            # Auto-detection mode
+            detected_hugo = self.settings._detect_hugo_executable()
+            if detected_hugo:
+                self.hugo_status.setText(f"Auto-detected: {detected_hugo}")
+                self.hugo_status.setStyleSheet("color: green; font-size: 10px;")
+            else:
+                self.hugo_status.setText("No Hugo executable auto-detected")
+                self.hugo_status.setStyleSheet("color: orange; font-size: 10px;")
+        else:
+            # Manual path mode
+            manual_path = self.hugo_path_input.text().strip()
+            from pathlib import Path
+            
+            if manual_path and Path(manual_path).exists():
+                self.hugo_status.setText(f"Custom: {manual_path}")
+                self.hugo_status.setStyleSheet("color: blue; font-size: 10px;")
+            elif manual_path:
+                self.hugo_status.setText("File not found")
+                self.hugo_status.setStyleSheet("color: red; font-size: 10px;")
+            else:
+                self.hugo_status.setText("No path specified")
+                self.hugo_status.setStyleSheet("color: orange; font-size: 10px;")
+
+    def _browse_go_path(self):
+        """Browse for Go executable."""
+        current_path = self.go_path_input.text().strip() or "/usr/local/bin"
+
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "Select Go Executable", current_path, "Executable Files (*)"
+        )
+
+        if file_path:
+            # Test if it's actually Go
+            try:
+                import subprocess
+                result = subprocess.run(
+                    [file_path, "version"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                )
+                if result.returncode == 0 and "go version" in result.stdout.lower():
+                    self.go_path_input.setText(file_path)
+                    self.auto_detect_go_cb.setChecked(False)
+                    self._update_go_status()
+                else:
+                    QMessageBox.warning(
+                        self,
+                        "Invalid Go Executable",
+                        f"The selected file does not appear to be a Go executable.\n\n"
+                        f"Expected Go version output but got:\n{result.stdout[:200]}...",
+                    )
+            except Exception as e:
+                QMessageBox.warning(
+                    self,
+                    "Go Test Failed",
+                    f"Failed to test Go executable:\n\n{e}",
+                )
+
+    def _test_go(self):
+        """Test the current Go executable."""
+        go_path = self.go_path_input.text().strip()
+
+        if not go_path:
+            # Test auto-detected Go
+            detected_go = self.settings._detect_go_executable()
+            if detected_go:
+                try:
+                    result = subprocess.run(
+                        [detected_go, "version"],
+                        capture_output=True,
+                        text=True,
+                        timeout=5,
+                    )
+                    QMessageBox.information(
+                        self,
+                        "Go Test",
+                        f"Auto-detected Go: {detected_go}\n\nVersion output:\n{result.stdout}",
+                    )
+                except Exception as e:
+                    QMessageBox.warning(
+                        self,
+                        "Go Test",
+                        f"Go found but test failed:\n\n{e}",
+                    )
+            else:
+                QMessageBox.warning(
+                    self,
+                    "Go Test",
+                    "No Go executable could be auto-detected.\n\nPlease specify the Go path manually.",
+                )
+            return
+
+        # Test specified Go
+        try:
+            result = subprocess.run(
+                [go_path, "version"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if result.returncode == 0:
+                QMessageBox.information(
+                    self,
+                    "Go Test",
+                    f"Go executable is working!\n\nVersion output:\n{result.stdout}",
+                )
+            else:
+                QMessageBox.warning(
+                    self,
+                    "Go Test",
+                    f"Go executable failed:\n\nReturn code: {result.returncode}\nOutput: {result.stderr}",
+                )
+        except FileNotFoundError:
+            QMessageBox.warning(
+                self,
+                "Go Test",
+                f"Go executable not found at:\n{go_path}\n\nPlease check the path and try again.",
+            )
+        except Exception as e:
+            QMessageBox.critical(self, "Go Test", f"Error testing Go executable:\n\n{e}")
+
+    def _on_auto_detect_go_changed(self):
+        """Handle auto-detect Go checkbox change."""
+        if self.auto_detect_go_cb.isChecked():
+            self.go_path_input.setText("")
+        self._update_go_status()
+
+    def _update_go_status(self):
+        """Update the Go status label."""
+        if self.auto_detect_go_cb.isChecked() or not self.go_path_input.text().strip():
+            # Auto-detection mode
+            detected_go = self.settings._detect_go_executable()
+            if detected_go:
+                self.go_status.setText(f"Auto-detected: {detected_go}")
+                self.go_status.setStyleSheet("color: green; font-size: 10px;")
+            else:
+                self.go_status.setText("No Go executable auto-detected")
+                self.go_status.setStyleSheet("color: orange; font-size: 10px;")
+        else:
+            # Manual path mode
+            manual_path = self.go_path_input.text().strip()
+            from pathlib import Path
+            
+            if manual_path and Path(manual_path).exists():
+                self.go_status.setText(f"Custom: {manual_path}")
+                self.go_status.setStyleSheet("color: blue; font-size: 10px;")
+            elif manual_path:
+                self.go_status.setText("File not found")
+                self.go_status.setStyleSheet("color: red; font-size: 10px;")
+            else:
+                self.go_status.setText("No path specified")
+                self.go_status.setStyleSheet("color: orange; font-size: 10px;")
+
     def _restore_defaults(self):
         """Restore all settings to default values."""
         reply = QMessageBox.question(
@@ -325,6 +677,8 @@ class SettingsDialog(QDialog):
             self._load_current_settings()
             self._update_editor_status()
             self._update_blog_status()
+            self._update_hugo_status()
+            self._update_go_status()
 
     def accept(self):
         """Save settings and accept the dialog."""
@@ -341,6 +695,26 @@ class SettingsDialog(QDialog):
                 self.settings.set_blog_path(blog_path)
             else:
                 self.settings.enable_blog_auto_detection()
+
+        # Save Hugo settings
+        if self.auto_detect_hugo_cb.isChecked():
+            self.settings.enable_hugo_auto_detection()
+        else:
+            hugo_path = self.hugo_path_input.text().strip()
+            if hugo_path:
+                self.settings.set_hugo_executable(hugo_path)
+            else:
+                self.settings.enable_hugo_auto_detection()
+
+        # Save Go settings
+        if self.auto_detect_go_cb.isChecked():
+            self.settings.enable_go_auto_detection()
+        else:
+            go_path = self.go_path_input.text().strip()
+            if go_path:
+                self.settings.set_go_executable(go_path)
+            else:
+                self.settings.enable_go_auto_detection()
 
         # Save git settings
         self.settings.set("git.auto_generate_messages", self.auto_generate_cb.isChecked())

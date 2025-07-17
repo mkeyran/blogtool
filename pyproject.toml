@@ -16,7 +16,6 @@ keywords = ["hugo", "blog", "qt", "gui", "management"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
@@ -43,6 +42,9 @@ dev = [
     "mypy>=1.0.0",
     "coverage>=7.0.0",
 ]
+build = [
+    "pyinstaller>=6.0.0",
+]
 
 [project.scripts]
 blogtool = "blogtool.cli:main"
@@ -51,6 +53,10 @@ blogtool = "blogtool.cli:main"
 Homepage = "https://github.com/keyran/blogtool"
 Repository = "https://github.com/keyran/blogtool"
 Issues = "https://github.com/keyran/blogtool/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["blogtool"]
+
 
 [tool.black]
 line-length = 120
